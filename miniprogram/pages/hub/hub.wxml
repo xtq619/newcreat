@@ -1,0 +1,52 @@
+<view class="hub-page">
+  <image class="bg" src="https://xtq619.xyz/bg-auth.png" mode="aspectFill"/>
+  <view class="ambient"/>
+
+  <!-- 顶部品牌 -->
+  <view class="hero">
+    <text class="hero-title">Think Different</text>
+    <text class="hero-subtitle">非 同 凡 想</text>
+  </view>
+
+  <!-- 内容区域 -->
+  <view class="scroll-area">
+    <!-- 时间线标题 -->
+    <view class="section-header">
+      <view class="section-line"/>
+      <text class="section-title">AI 发展之路</text>
+      <view class="section-line"/>
+    </view>
+
+    <!-- 时间线 -->
+    <view class="timeline">
+      <view class="timeline-line"/>
+      <view class="timeline-node" wx:for="{{timeline}}" wx:key="year">
+        <view class="node-dot"/>
+        <view class="node-card">
+          <view wx:if="{{item.img}}" class="node-img-bg" style="background-image: url({{item.img}});"/>
+          <view wx:else class="node-img-placeholder">
+            <text class="node-img-text">{{item.emoji}}</text>
+          </view>
+          <view class="node-info">
+            <text class="node-year">{{item.year}}</text>
+            <text class="node-title">{{item.title}}</text>
+            <text class="node-desc">{{item.desc}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 主理人想说 -->
+    <view class="section-header">
+      <view class="section-line"/>
+      <text class="section-title">主理人想说</text>
+      <view class="section-line"/>
+    </view>
+
+    <view class="thoughts-card">
+      <text class="thoughts-text">{{thoughts.product}}</text>
+    </view>
+
+    <view class="bottom-space"/>
+  </view>
+</view>

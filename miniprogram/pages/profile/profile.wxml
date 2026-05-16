@@ -1,0 +1,37 @@
+<view class="profile-page">
+  <image class="bg" src="https://xtq619.xyz/bg-auth.png" mode="aspectFill"/>
+
+  <view class="profile-content">
+    <!-- 未登录：弹窗式登录 -->
+    <view wx:if="{{!isLoggedIn}}" class="login-card">
+      <text class="login-title">登录账号</text>
+
+      <view class="avatar-wrap">
+        <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image wx:if="{{tempAvatar}}" class="avatar-img" src="{{tempAvatar}}" mode="aspectFill"/>
+          <view wx:else class="avatar-placeholder">
+            <text class="avatar-icon">头像</text>
+          </view>
+        </button>
+      </view>
+
+      <input class="nickname-input" type="nickname" placeholder="点击获取微信昵称" value="{{tempNickname}}" bindinput="onNicknameInput"/>
+
+      <button class="login-btn" bindtap="wxLogin" loading="{{loading}}">
+        <text>确认登录</text>
+      </button>
+    </view>
+
+    <!-- 已登录 -->
+    <view wx:if="{{isLoggedIn}}" class="logged-section">
+      <image wx:if="{{avatarUrl}}" class="avatar-img" src="{{avatarUrl}}" mode="aspectFill"/>
+      <view wx:else class="avatar">{{userName}}</view>
+
+      <text class="profile-name">{{userEmail || '微信用户'}}</text>
+
+      <view class="profile-btn logout" bindtap="logout">
+        <text>退出登录</text>
+      </view>
+    </view>
+  </view>
+</view>

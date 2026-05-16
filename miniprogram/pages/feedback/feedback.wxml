@@ -1,0 +1,35 @@
+<view class="page-container">
+  <image class="bg" src="https://xtq619.xyz/bg-auth.png" mode="aspectFill"/>
+
+  <!-- Submit form -->
+  <view class="glass-card submit-section">
+    <textarea
+      class="input-area"
+      placeholder="写下你的想法和建议..."
+      placeholder-class="placeholder"
+      maxlength="500"
+      bindinput="onInput"
+      value="{{content}}"
+    />
+    <button class="btn-primary submit-btn" bindtap="submit" loading="{{submitting}}">提交</button>
+  </view>
+
+  <!-- My feedback list -->
+  <view class="feedback-list">
+    <view class="glass-card feedback-item" wx:for="{{items}}" wx:key="id">
+      <text class="feedback-content">{{item.content}}</text>
+      <view class="feedback-meta">
+        <text class="feedback-time">{{item.created_at}}</text>
+        <text class="feedback-delete" data-id="{{item.id}}" bindtap="deleteItem">删除</text>
+      </view>
+      <view wx:if="{{item.reply}}" class="reply-section">
+        <text class="reply-label">管理员回复:</text>
+        <text class="reply-content">{{item.reply}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{!loading && items.length === 0}}">
+    <text class="empty-text">{{isLoggedIn ? '暂无留言' : '登录后即可留言'}}</text>
+  </view>
+</view>

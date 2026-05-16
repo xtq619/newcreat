@@ -1,0 +1,211 @@
+<view class="wc-page">
+  <image class="wc-bg" src="https://xtq619.xyz/wc-hero.jpg" mode="aspectFill"/>
+
+  <!-- 顶部标题 -->
+  <view class="wc-hero">
+    <text class="wc-title">2026 世界杯</text>
+    <text class="wc-subtitle">🇺🇸🇨🇦🇲🇽 美国 · 加拿大 · 墨西哥</text>
+    <view class="countdown" wx:if="{{daysLeft > 0}}">
+      <text class="countdown-num">{{daysLeft}}</text>
+      <text class="countdown-unit">天后开赛</text>
+    </view>
+    <view class="countdown" wx:elif="{{daysLeft === 0}}">
+      <text class="countdown-live">今日开赛！</text>
+    </view>
+    <view class="countdown" wx:else>
+      <text class="countdown-live">赛事进行中</text>
+    </view>
+  </view>
+
+  <!-- 二级 Tab -->
+  <view class="sub-tabs">
+    <view class="sub-tab {{activeTab === 'schedule' ? 'active' : ''}}" bindtap="switchTab" data-tab="schedule">
+      <text>赛程</text>
+    </view>
+    <view class="sub-tab {{activeTab === 'guess' ? 'active' : ''}}" bindtap="switchTab" data-tab="guess">
+      <text>竞猜</text>
+    </view>
+    <view class="sub-tab {{activeTab === 'emotion' ? 'active' : ''}}" bindtap="switchTab" data-tab="emotion">
+      <text>情绪</text>
+    </view>
+    <view class="sub-tab {{activeTab === 'analysis' ? 'active' : ''}}" bindtap="switchTab" data-tab="analysis">
+      <text>分析</text>
+    </view>
+  </view>
+
+  <!-- 赛程 Tab -->
+  <view class="tab-content" wx:if="{{activeTab === 'schedule'}}">
+    <!-- 筛选 -->
+    <view class="filter-row">
+      <view class="filter-btn {{stageFilter === 'all' ? 'active' : ''}}" bindtap="filterStage" data-stage="all">全部</view>
+      <view class="filter-btn {{stageFilter === 'group' ? 'active' : ''}}" bindtap="filterStage" data-stage="group">小组赛</view>
+      <view class="filter-btn {{stageFilter === 'knockout' ? 'active' : ''}}" bindtap="filterStage" data-stage="knockout">淘汰赛</view>
+    </view>
+
+    <!-- 赛程列表 -->
+    <view class="match-list">
+      <view wx:for="{{filteredMatches}}" wx:key="id">
+        <!-- 日期分组 -->
+        <view class="date-header" wx:if="{{item.showDate}}">
+          <text class="date-text">{{item.dateLabel}}</text>
+        </view>
+
+        <view class="match-card glass-card">
+          <view class="match-stage" wx:if="{{item.stage !== 'group'}}">
+            <text>{{item.stageLabel}}</text>
+          </view>
+          <view class="match-stage group-tag" wx:else>
+            <text>组{{item.group}}</text>
+          </view>
+
+          <view class="match-teams">
+            <view class="team-side">
+              <text class="team-flag">{{item.teamA.flag}}</text>
+              <text class="team-name">{{item.teamA.name}}</text>
+            </view>
+
+            <view class="match-center">
+              <text wx:if="{{item.status === 'finished'}}" class="match-score">{{item.scoreA}} - {{item.scoreB}}</text>
+              <text wx:elif="{{item.status === 'live'}}" class="match-live">进行中</text>
+              <text wx:else class="match-time">{{item.time}}</text>
+              <text class="match-tz">北京时间</text>
+            </view>
+
+            <view class="team-side team-right">
+              <text class="team-name">{{item.teamB.name}}</text>
+              <text class="team-flag">{{item.teamB.flag}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 竞猜 Tab -->
+  <view class="tab-content" wx:if="{{activeTab === 'guess'}}">
+    <view class="guess-stats glass-card">
+      <view class="stat-item">
+        <text class="stat-num">{{guessStats.total}}</text>
+        <text class="stat-label">已竞猜</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{guessStats.correct}}</text>
+        <text class="stat-label">猜对</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{guessStats.rate}}%</text>
+        <text class="stat-label">准确率</text>
+      </view>
+    </view>
+
+    <view class="match-list">
+      <view wx:for="{{guessableMatches}}" wx:key="id" class="match-card glass-card">
+        <view class="match-stage group-tag">
+          <text>{{item.stage === 'group' ? '组' + item.group : item.stageLabel}}</text>
+        </view>
+
+        <view class="match-teams">
+          <view class="team-side">
+            <text class="team-flag">{{item.teamA.flag}}</text>
+            <text class="team-name">{{item.teamA.name}}</text>
+          </view>
+
+          <view class="guess-inputs">
+            <input class="guess-score" type="number" maxlength="2" value="{{item.myGuessA || ''}}" placeholder="0" data-id="{{item.id}}" data-side="A" bindinput="onGuessInput"/>
+            <text class="guess-sep">-</text>
+            <input class="guess-score" type="number" maxlength="2" value="{{item.myGuessB || ''}}" placeholder="0" data-id="{{item.id}}" data-side="B" bindinput="onGuessInput"/>
+          </view>
+
+          <view class="team-side team-right">
+            <text class="team-name">{{item.teamB.name}}</text>
+            <text class="team-flag">{{item.teamB.flag}}</text>
+          </view>
+        </view>
+
+        <button class="btn-primary guess-submit" data-id="{{item.id}}" bindtap="submitGuess">提交预测</button>
+
+        <view wx:if="{{item.guessResult}}" class="guess-result">
+          <text class="{{item.guessResult.correct ? 'result-correct' : 'result-wrong'}}">
+            {{item.guessResult.correct ? '预测正确！' : '实际比分 ' + item.scoreA + ' - ' + item.scoreB}}
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 情绪 Tab -->
+  <view class="tab-content" wx:if="{{activeTab === 'emotion'}}">
+    <view class="match-list">
+      <view wx:for="{{emotionMatches}}" wx:key="id" class="match-card glass-card">
+        <view class="match-teams compact">
+          <text class="team-flag">{{item.teamA.flag}}</text>
+          <text class="team-name-sm">{{item.teamA.name}}</text>
+          <text class="match-time-sm">{{item.date}} {{item.time}}</text>
+          <text class="team-name-sm">{{item.teamB.name}}</text>
+          <text class="team-flag">{{item.teamB.flag}}</text>
+        </view>
+
+        <view class="emotion-options">
+          <view wx:for="{{emotions}}" wx:for-item="emo" wx:key="key" class="emotion-btn {{item.myEmotion === emo.key ? 'selected' : ''}}" data-id="{{item.id}}" data-emotion="{{emo.key}}" bindtap="submitEmotion">
+            <text class="emotion-emoji">{{emo.emoji}}</text>
+            <text class="emotion-label">{{emo.label}}</text>
+          </view>
+        </view>
+
+        <!-- 情绪统计 -->
+        <view wx:if="{{item.emotionStats}}" class="emotion-bars">
+          <view wx:for="{{item.emotionStats}}" wx:for-item="stat" wx:key="key" class="emotion-bar-row">
+            <text class="bar-label">{{stat.emoji}} {{stat.label}}</text>
+            <view class="bar-track">
+              <view class="bar-fill" style="width: {{stat.pct}}%"></view>
+            </view>
+            <text class="bar-pct">{{stat.pct}}%</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分析 Tab -->
+  <view class="tab-content" wx:if="{{activeTab === 'analysis'}}">
+    <view class="match-list">
+      <view wx:for="{{analyzableMatches}}" wx:key="id" class="match-card glass-card">
+        <view class="match-teams compact">
+          <text class="team-flag">{{item.teamA.flag}}</text>
+          <text class="team-name-sm">{{item.teamA.name}}</text>
+          <text class="match-vs">VS</text>
+          <text class="team-name-sm">{{item.teamB.name}}</text>
+          <text class="team-flag">{{item.teamB.flag}}</text>
+        </view>
+
+        <view wx:if="{{item.analysis}}" class="analysis-content">
+          <!-- 实力对比条 -->
+          <view class="strength-bar">
+            <view class="strength-a" style="width: {{item.analysis.strengthA}}%"></view>
+            <text class="strength-label-a">{{item.teamA.name}} {{item.analysis.strengthA}}%</text>
+            <text class="strength-label-b">{{item.teamB.name}} {{item.analysis.strengthB}}%</text>
+          </view>
+
+          <view class="analysis-section">
+            <text class="analysis-title">实力对比</text>
+            <text class="analysis-text">{{item.analysis.comparison}}</text>
+          </view>
+
+          <view class="analysis-section">
+            <text class="analysis-title">关键球员</text>
+            <text class="analysis-text">{{item.analysis.keyPlayers}}</text>
+          </view>
+
+          <view class="analysis-section">
+            <text class="analysis-title">预测</text>
+            <text class="analysis-text">{{item.analysis.prediction}}</text>
+          </view>
+        </view>
+
+        <view wx:else class="analysis-placeholder">
+          <text class="placeholder-text">赛事开始前将提供详细分析</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

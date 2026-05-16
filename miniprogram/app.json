@@ -1,0 +1,56 @@
+{
+  "pages": [
+    "pages/hub/hub",
+    "pages/battle/battle",
+    "pages/feedback/feedback",
+    "pages/profile/profile",
+    "pages/worldcup/worldcup"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#080808",
+    "navigationBarTitleText": "API Gateway",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#060606",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#ffffff",
+    "selectedColor": "#dba460",
+    "backgroundColor": "#0a0a0a",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/hub/hub",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/battle/battle",
+        "text": "讨论",
+        "iconPath": "static/tabbar/debate.png",
+        "selectedIconPath": "static/tabbar/debate-active.png"
+      },
+      {
+        "pagePath": "pages/worldcup/worldcup",
+        "text": "世界杯",
+        "iconPath": "static/tabbar/worldcup.png",
+        "selectedIconPath": "static/tabbar/worldcup-active.png"
+      },
+      {
+        "pagePath": "pages/feedback/feedback",
+        "text": "留言",
+        "iconPath": "static/tabbar/feedback.png",
+        "selectedIconPath": "static/tabbar/feedback-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/tabbar/profile.png",
+        "selectedIconPath": "static/tabbar/profile-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}
