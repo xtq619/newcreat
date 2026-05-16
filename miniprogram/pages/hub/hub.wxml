@@ -23,7 +23,7 @@
       <view class="timeline-node" wx:for="{{timeline}}" wx:key="year">
         <view class="node-dot"/>
         <view class="node-card">
-          <view wx:if="{{item.img}}" class="node-img-bg" style="background-image: url({{item.img}});"/>
+          <image wx:if="{{item.img}}" class="node-img" src="{{item.img}}" mode="aspectFill" lazy-load="true"/>
           <view wx:else class="node-img-placeholder">
             <text class="node-img-text">{{item.emoji}}</text>
           </view>

@@ -59,7 +59,10 @@ Page({
     this.setData({ activeTab: tab });
     if (tab === 'guess') this.prepareGuessMatches();
     if (tab === 'emotion') this.prepareEmotionMatches();
-    if (tab === 'analysis') this.prepareAnalysisMatches();
+    if (tab === 'analysis') {
+      this.prepareAnalysisMatches();
+      this.loadCachedAnalyses();
+    }
   },
 
   filterStage(e) {
@@ -178,26 +181,73 @@ Page({
 
   // ===== 分析 =====
   prepareAnalysisMatches() {
-    const matches = allMatches.slice(0, 8).map(m => {
-      let analysis = null;
-      if (m.teamA.code !== 'TBD' && m.teamB.code !== 'TBD') {
-        analysis = this.generateAnalysis(m.teamA, m.teamB);
-      }
-      return { ...m, stageLabel: stageLabels[m.stage], analysis };
-    });
+    const matches = allMatches.filter(m => m.teamA.code !== 'TBD' && m.teamB.code !== 'TBD').map(m => ({
+      ...m,
+      stageLabel: stageLabels[m.stage],
+      analysisData: null,
+      analysisModel: '',
+      showAllAnalysis: false,
+      analysisLoading: false,
+    }));
     this.setData({ analyzableMatches: matches });
   },
 
-  generateAnalysis(teamA, teamB) {
-    // 模拟分析数据
-    const aStr = Math.floor(Math.random() * 30) + 35;
-    return {
-      strengthA: aStr,
-      strengthB: 100 - aStr,
-      comparison: `${teamA.name}与${teamB.name}在历史上有过多次交锋。两队风格各有特点，${teamA.name}在进攻端表现活跃，${teamB.name}则擅长防守反击。本场较量将考验双方的临场应变能力。`,
-      keyPlayers: `${teamA.name}的核心球员将是进攻端的关键，${teamB.name}的中场组织者将承担串联攻防的重任。两队门将的发挥也可能成为决定性因素。`,
-      prediction: `综合双方实力和近期状态，本场比赛预计将非常激烈。${teamA.name}略占优势，但${teamB.name}同样具备爆冷的实力。`,
+  analyzeMatch(e) {
+    const idx = e.currentTarget.dataset.idx;
+    const match = this.data.analyzableMatches[idx];
+    if (!match || match.analysisLoading) return;
+
+    this.setData({ [`analyzableMatches[${idx}].analysisLoading`]: true });
+
+    api.analyzeWorldCupMatch(match.teamA.name, match.teamB.name).then(data => {
+      const analysisData = data.analysis && typeof data.analysis === 'object'
+        ? data.analysis
+        : (typeof data.analysis === 'string' ? { raw_text: data.analysis } : { raw_text: '暂无分析' });
+
+      this.setData({
+        [`analyzableMatches[${idx}].analysisData`]: analysisData,
+        [`analyzableMatches[${idx}].analysisModel`]: data.model || '',
+        [`analyzableMatches[${idx}].analysisLoading`]: false,
+      });
+
+      this.cacheAnalysis(match.id, { analysis: analysisData, model: data.model || '' });
+    }).catch(err => {
+      this.setData({ [`analyzableMatches[${idx}].analysisLoading`]: false });
+      wx.showToast({ title: err.message || '分析失败', icon: 'none' });
+    });
+  },
+
+  toggleAnalysisDetail(e) {
+    const id = e.currentTarget.dataset.id;
+    const idx = this.data.analyzableMatches.findIndex(m => m.id === id);
+    if (idx >= 0) {
+      const current = this.data.analyzableMatches[idx].showAllAnalysis || false;
+      this.setData({ [`analyzableMatches[${idx}].showAllAnalysis`]: !current });
+    }
+  },
+
+  cacheAnalysis(matchId, data) {
+    const cache = wx.getStorageSync('wc_analysis_cache') || {};
+    cache[matchId] = {
+      analysis: data.analysis,
+      model: data.model,
+      timestamp: Date.now(),
     };
+    wx.setStorageSync('wc_analysis_cache', cache);
+  },
+
+  loadCachedAnalyses() {
+    const cache = wx.getStorageSync('wc_analysis_cache') || {};
+    const now = Date.now();
+    const MAX_AGE = 24 * 60 * 60 * 1000;
+    const matches = this.data.analyzableMatches.map(m => {
+      const cached = cache[m.id];
+      if (cached && (now - cached.timestamp) < MAX_AGE) {
+        return { ...m, analysisData: cached.analysis, analysisModel: cached.model };
+      }
+      return m;
+    });
+    this.setData({ analyzableMatches: matches });
   },
 
   // ===== 加载用户数据 =====

@@ -7,7 +7,7 @@ function request(path, options = {}) {
       url: `${app.globalData.baseUrl}${path}`,
       method: options.method || 'GET',
       data: options.data,
-      timeout: 15000,
+      timeout: options.timeout || 15000,
       header: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -90,6 +90,7 @@ module.exports = {
   getMyGuesses: () => request('/worldcup/guesses'),
   submitEmotion: (matchId, data) => request(`/worldcup/emotion/${matchId}`, { method: 'POST', data }),
   getEmotions: (matchId) => request(`/worldcup/emotion/${matchId}`),
+  analyzeWorldCupMatch: (teamA, teamB) => request('/worldcup/analysis', { method: 'POST', data: { team_a: teamA, team_b: teamB }, timeout: 180000 }),
 
   // Admin
   adminUsers: () => request('/admin/users'),

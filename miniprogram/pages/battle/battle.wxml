@@ -6,12 +6,12 @@
     <!-- 两位辩手头像 -->
     <view class="debaters">
       <view class="debater">
-        <image class="debater-avatar" src="https://xtq619.xyz/debater-a.png" mode="aspectFill"/>
+        <image class="debater-avatar" src="https://xtq619.xyz/face-a.png" mode="aspectFill"/>
         <text class="debater-name">正方</text>
       </view>
       <text class="vs-text">VS</text>
       <view class="debater">
-        <image class="debater-avatar" src="https://xtq619.xyz/debater-b.png" mode="aspectFill"/>
+        <image class="debater-avatar" src="https://xtq619.xyz/face-b.png" mode="aspectFill"/>
         <text class="debater-name">反方</text>
       </view>
     </view>
@@ -29,7 +29,7 @@
     <view class="turn glass-card-bright" wx:for="{{turns}}" wx:key="round">
       <view class="turn-header">
         <view class="turn-debater">
-          <image class="turn-avatar" src="{{item.model === 'a' ? 'https://xtq619.xyz/debater-a.png' : 'https://xtq619.xyz/debater-b.png'}}" mode="aspectFill"/>
+          <image class="turn-avatar" src="{{item.model === 'a' ? 'https://xtq619.xyz/face-a.png' : 'https://xtq619.xyz/face-b.png'}}" mode="aspectFill"/>
           <text class="turn-model model-{{item.model}}">{{item.model === 'a' ? '正方' : '反方'}} · 第{{item.round}}轮</text>
         </view>
       </view>

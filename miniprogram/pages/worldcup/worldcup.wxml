@@ -1,5 +1,5 @@
 <view class="wc-page">
-  <image class="wc-bg" src="https://xtq619.xyz/wc-hero.jpg" mode="aspectFill"/>
+  <image class="wc-bg" src="https://xtq619.xyz/worldcup-bg.jpg" mode="aspectFill"/>
 
   <!-- 顶部标题 -->
   <view class="wc-hero">
@@ -178,33 +178,61 @@
           <text class="team-flag">{{item.teamB.flag}}</text>
         </view>
 
-        <view wx:if="{{item.analysis}}" class="analysis-content">
-          <!-- 实力对比条 -->
-          <view class="strength-bar">
-            <view class="strength-a" style="width: {{item.analysis.strengthA}}%"></view>
-            <text class="strength-label-a">{{item.teamA.name}} {{item.analysis.strengthA}}%</text>
-            <text class="strength-label-b">{{item.teamB.name}} {{item.analysis.strengthB}}%</text>
+        <!-- 分析结果（结构化） -->
+        <view wx:if="{{item.analysisData}}" class="analysis-sections">
+          <view wx:if="{{item.analysisData.raw_text}}">
+            <text class="section-body">{{item.analysisData.raw_text}}</text>
           </view>
-
-          <view class="analysis-section">
-            <text class="analysis-title">实力对比</text>
-            <text class="analysis-text">{{item.analysis.comparison}}</text>
-          </view>
-
-          <view class="analysis-section">
-            <text class="analysis-title">关键球员</text>
-            <text class="analysis-text">{{item.analysis.keyPlayers}}</text>
-          </view>
-
-          <view class="analysis-section">
-            <text class="analysis-title">预测</text>
-            <text class="analysis-text">{{item.analysis.prediction}}</text>
-          </view>
+          <block wx:else>
+            <view class="analysis-section">
+              <text class="section-title">战术风格</text>
+              <text class="section-body">{{item.analysisData.team_styles}}</text>
+            </view>
+            <view class="analysis-section">
+              <text class="section-title">战术博弈</text>
+              <text class="section-body">{{item.analysisData.tactical_comparison}}</text>
+            </view>
+            <view class="analysis-section">
+              <text class="section-title">关键球员</text>
+              <text class="section-body">{{item.analysisData.key_players}}</text>
+            </view>
+            <view wx:if="{{item.showAllAnalysis}}" class="analysis-extended">
+              <view class="analysis-section">
+                <text class="section-title">历史交锋</text>
+                <text class="section-body">{{item.analysisData.historical}}</text>
+              </view>
+              <view class="analysis-section">
+                <text class="section-title">预计阵容</text>
+                <text class="section-body">{{item.analysisData.lineup_prediction}}</text>
+              </view>
+              <view class="analysis-section">
+                <text class="section-title">伤病情况</text>
+                <text class="section-body">{{item.analysisData.injury_concerns}}</text>
+              </view>
+              <view class="analysis-section">
+                <text class="section-title">胜率参考</text>
+                <text class="section-body">{{item.analysisData.odds_reference}}</text>
+              </view>
+            </view>
+            <view class="analysis-toggle" bindtap="toggleAnalysisDetail" data-id="{{item.id}}">
+              <text>{{item.showAllAnalysis ? '收起 ∧' : '展开更多分析 ∨'}}</text>
+            </view>
+            <view class="score-prediction-box">
+              <text class="prediction-label">比分预测</text>
+              <text class="prediction-text">{{item.analysisData.score_prediction}}</text>
+            </view>
+          </block>
+          <text wx:if="{{item.analysisModel}}" class="model-tag">分析模型: {{item.analysisModel}}</text>
         </view>
 
-        <view wx:else class="analysis-placeholder">
-          <text class="placeholder-text">赛事开始前将提供详细分析</text>
+        <view wx:elif="{{item.analysisLoading}}" class="analysis-loading">
+          <view class="loading-spinner"></view>
+          <text class="loading-text">AI 深入分析中...</text>
         </view>
+
+        <button wx:else class="btn-primary analyze-btn" data-idx="{{index}}" data-id="{{item.id}}" bindtap="analyzeMatch">
+          智能分析
+        </button>
       </view>
     </view>
   </view>

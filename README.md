@@ -5,18 +5,18 @@
 ## 项目关系
 
 ```
-D:\newcreat\
-├── api-gateway/              # 主项目（后端 + Web 前端，唯一需要 Git 的仓库）
-│   ├── backend/              # FastAPI 后端服务
-│   ├── frontend/             # React Web 前端
-│   ├── nginx/                # Nginx 反向代理配置
-│   └── docker-compose.yml    # Docker 编排
+D:\newcreat\                     ← GitHub: xtq619/newcreat
+├── api-gateway/                 # 后端 + Web 前端
+│   ├── backend/                 # FastAPI 后端服务
+│   ├── frontend/                # React Web 前端
+│   ├── nginx/                   # Nginx 反向代理配置
+│   └── docker-compose.yml       # Docker 编排
 │
-├── miniprogram/              # 微信小程序前端（通过微信开发者工具部署，不走 Git）
+├── miniprogram/                 # 微信小程序前端
 │
-├── tencent-news-fetcher.py   # 硅谷新闻抓取代理（部署在腾讯云硅谷服务器，源码备份在此）
+├── image/                       # 项目图片资源
 │
-└── README.md                 # 本文件
+└── README.md                    # 本文件
 ```
 
 ## 三者关系
@@ -68,7 +68,14 @@ D:\newcreat\
 - 两个 AI 模型围绕话题多轮辩论，裁判 AI 总结评判
 - WebSocket 实时推送对战过程
 
-### 4. 其他
+### 4. 世界杯
+
+- 赛程展示（12 组 48 队 + 淘汰赛，北京时间）
+- 竞猜预测（提交比分，记录准确率）
+- 情绪投票（激动/紧张/失望/狂喜/平静）
+- 赛事分析（实力对比、关键球员、预测）
+
+### 5. 其他
 - 建议留言（用户反馈 + 管理员回复）
 - 每日摘要邮件推送
 - 微信小程序 + Web 双端
@@ -145,15 +152,50 @@ Docker Compose 部署：
 粘贴密文 + 输入密码 → 浏览器本地解密（不经过服务器）
 ```
 
+## Git 工作流
+
+本项目 GitHub 仓库：`xtq619/newcreat`
+
+由于本地电脑无法直连 GitHub，更新代码需要通过上海服务器中转。
+
+服务器目录结构：`/opt/api-gateway` 是 `/opt/newcreat/api-gateway` 的软链接，**只维护 newcreat 一个仓库即可**，Docker 从软链接路径启动，数据不受影响。
+
+### 日常更新流程
+
+```bash
+# 1. 本地改完代码后，打包传到服务器
+#    在 D:\newcreat\ 目录下执行（Windows PowerShell）:
+tar czf /tmp/newcreat.tar.gz --exclude='api-gateway/frontend/node_modules' --exclude='api-gateway/frontend/dist' --exclude='.git' miniprogram api-gateway image README.md .gitignore
+scp /tmp/newcreat.tar.gz api-gw:/opt/newcreat/
+
+# 2. SSH 到服务器，解压并推送
+ssh api-gw
+cd /opt/newcreat
+rm -f newcreat.tar.gz
+tar xzf /opt/newcreat/newcreat.tar.gz
+rm -f newcreat.tar.gz
+git add -A
+git commit -m "描述改动"
+git push
+
+# 3. 重新部署后端（如有变更）
+cd /opt/api-gateway  # 实际是 /opt/newcreat/api-gateway 的软链接
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+> **注意**：服务器 git remote 使用 `ghfast.top` 代理推送（国内直连 GitHub 不通）：
+> `https://ghfast.top/https://github.com/xtq619/newcreat.git`
+
 ## 部署
 
 ### 阿里云（主服务器）
 
 ```bash
 ssh api-gw
-cd /opt/api-gateway
+cd /opt/newcreat
 git pull origin main
-docker compose up -d --build
+cd api-gateway
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ### 腾讯云（海外中转）
@@ -185,16 +227,29 @@ systemctl reload nginx
 | `miniprogram/pages/battle/battle.js` | 模型擂台页面 |
 | `miniprogram/pages/feedback/feedback.js` | 建议留言页面 |
 | `miniprogram/utils/api.js` | 小程序 API 封装 |
-| `tencent-news-fetcher.py` | 硅谷新闻抓取代理（部署在腾讯云） |
 
 ## 给 AI 的提示
 
+### 项目架构
+
 - 修改后端 API 时，**frontend 和 miniprogram 可能都需要同步更新**
 - miniprogram 的代码在 `D:\newcreat\miniprogram`，不在 api-gateway 仓库内
-- 小程序的 API 基础地址硬编码在 `miniprogram/utils/api.js` 和 `miniprogram/app.js` 中
+- 小程序的 API 基础地址硬编码在 `miniprogram/app.js` 中
 - 后端微信相关配置在 `backend/.env`（WX_APPID、WX_SECRET）
-- 两台服务器都已配置免密 SSH：`ssh api-gw`（阿里云）、`ssh tencent`（腾讯云）
-- 腾讯云服务器裸机运行 Python 脚本，没有 Docker，管理方式不同于阿里云
-- `tencent-news-fetcher.py` 需要手动部署到腾讯云，不走 api-gateway 的 Docker Compose
 - 数据库迁移自动执行（entrypoint.sh 中 `alembic upgrade head`）
 - 自由時報文章自动标记 `is_sensitive=true, is_published=false`，不在网页和小程序推送
+
+### 服务器
+
+- 两台服务器都已配置免密 SSH：`ssh api-gw`（阿里云）、`ssh tencent`（腾讯云）
+- 阿里云：Docker Compose 部署，`/opt/api-gateway` 是 `/opt/newcreat/api-gateway` 的软链接
+- 腾讯云：裸机运行 Python 脚本（`/root/news_fetcher.py`），没有 Docker，提供海外 RSS 代理
+
+### 换域名时必须修改的文件
+
+| 文件 | 内容 |
+|------|------|
+| `miniprogram/app.js` | `baseUrl` 里的域名 |
+| `nginx/nginx.conf` | `server_name` |
+| `backend/app/services/news_fetcher.py` | `SILICON_VALLEY_PROXY` |
+| `docker-compose.prod.yml` 的 `.env` | `DOMAIN` 变量 |
