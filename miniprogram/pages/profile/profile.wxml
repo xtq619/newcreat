@@ -32,6 +32,47 @@
       <view class="profile-btn logout" bindtap="logout">
         <text>退出登录</text>
       </view>
+
+      <!-- 给开发者留言 -->
+      <view class="feedback-section">
+        <view class="feedback-header">
+          <text class="feedback-title">给开发者留言</text>
+          <text class="feedback-subtitle">你的留言仅开发者可见</text>
+        </view>
+
+        <view class="feedback-form">
+          <textarea
+            class="feedback-textarea"
+            placeholder="写下你想对开发者说的话..."
+            placeholder-class="feedback-placeholder"
+            maxlength="500"
+            bindinput="onFeedbackInput"
+            value="{{feedbackContent}}"
+          />
+          <button class="feedback-submit-btn" bindtap="submitFeedback" loading="{{feedbackSubmitting}}">
+            <text>发送</text>
+          </button>
+        </view>
+
+        <!-- 历史留言 -->
+        <view class="feedback-list" wx:if="{{feedbackItems.length > 0}}">
+          <view class="feedback-item" wx:for="{{feedbackItems}}" wx:key="id">
+            <view class="feedback-item-header">
+              <text class="feedback-time">{{item.created_at}}</text>
+              <text class="feedback-delete" data-id="{{item.id}}" bindtap="deleteFeedback">删除</text>
+            </view>
+            <text class="feedback-content">{{item.content}}</text>
+            <view wx:if="{{item.reply}}" class="feedback-reply">
+              <text class="reply-label">开发者回复：</text>
+              <text class="reply-content">{{item.reply}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="feedback-empty" wx:if="{{!feedbackLoading && feedbackItems.length === 0}}">
+          <text class="feedback-empty-text">暂无留言</text>
+        </view>
+      </view>
     </view>
   </view>
 </view>

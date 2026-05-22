@@ -11,6 +11,8 @@
   width: 100%;
   height: 100%;
   z-index: 0;
+  filter: blur(4px);
+  opacity: 0.7;
 }
 
 /* === 顶部标题 === */
@@ -76,15 +78,130 @@
   padding: 16rpx 36rpx;
   border-radius: 40rpx;
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(12, 16, 24, 0.55);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
 .sub-tab.active {
   color: #000;
   background: #dba460;
   border-color: #dba460;
+}
+
+/* === 日期选择器 === */
+.date-strip {
+  margin-bottom: 24rpx;
+  white-space: nowrap;
+}
+
+.date-strip-inner {
+  display: inline-flex;
+  gap: 12rpx;
+  padding: 0 24rpx;
+}
+
+.date-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  border-radius: 14rpx;
+  background: rgba(12, 16, 24, 0.55);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  min-width: 100rpx;
+}
+
+.date-chip.active {
+  background: rgba(219, 164, 96, 0.28);
+  border-color: rgba(219, 164, 96, 0.6);
+}
+
+.date-chip-month {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.date-chip.active .date-chip-month {
+  color: #dba460;
+}
+
+.date-chip-day {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  line-height: 1.2;
+}
+
+.date-chip.active .date-chip-day {
+  color: #dba460;
+}
+
+.date-chip-week {
+  font-size: 18rpx;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.date-chip.active .date-chip-week {
+  color: rgba(219, 164, 96, 0.6);
+}
+
+/* === 空状态 === */
+.empty-hint {
+  text-align: center;
+  padding: 80rpx 0;
+}
+
+.empty-hint text {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* === 比赛卡片增强 === */
+.match-card-time {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  margin-left: 12rpx;
+}
+
+.match-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+}
+
+.guess-badge {
+  font-size: 22rpx;
+  color: #dba460;
+  padding: 6rpx 16rpx;
+  background: rgba(219, 164, 96, 0.08);
+  border-radius: 8rpx;
+}
+
+.guess-badge.correct {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.guess-badge.wrong {
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.guess-submit-sm {
+  font-size: 22rpx;
+  padding: 10rpx 28rpx;
+  border-radius: 8rpx;
+}
+
+/* === 紧凑预测输入 === */
+.guess-inputs.compact .guess-score {
+  width: 56rpx;
+  height: 56rpx;
+  font-size: 28rpx;
 }
 
 /* === 内容区 === */
@@ -95,25 +212,33 @@
 }
 
 /* === 筛选行 === */
+.filter-bar {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 16rpx;
+  padding: 12rpx 20rpx;
+  margin-bottom: 24rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
 .filter-row {
   display: flex;
   gap: 16rpx;
-  margin-bottom: 24rpx;
 }
 
 .filter-btn {
-  padding: 12rpx 28rpx;
-  border-radius: 24rpx;
+  padding: 10rpx 24rpx;
+  border-radius: 20rpx;
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
 }
 
 .filter-btn.active {
-  color: #dba460;
-  border-color: rgba(219, 164, 96, 0.4);
-  background: rgba(219, 164, 96, 0.1);
+  color: #1a1a1a;
+  background: #dba460;
+  border-color: #dba460;
+  font-weight: 500;
 }
 
 /* === 日期分组 === */
@@ -123,9 +248,13 @@
 
 .date-text {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.85);
   font-family: 'SF Mono', 'Menlo', monospace;
   letter-spacing: 2rpx;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 8rpx 20rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
 }
 
 /* === 比赛卡片 === */
@@ -163,13 +292,28 @@
 .team-side {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 8rpx;
   flex: 1;
+  padding: 8rpx 12rpx;
+  border-radius: 12rpx;
+  background: rgba(255,255,255,0.03);
+  border: 1rpx solid rgba(255,255,255,0.04);
+}
+
+.team-side::after {
+  content: '›';
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.15);
+  margin-left: -2rpx;
 }
 
 .team-right {
   justify-content: flex-end;
   text-align: right;
+}
+
+.team-right::after {
+  content: '‹';
 }
 
 .team-flag {
@@ -210,7 +354,7 @@
 
 .match-tz {
   font-size: 18rpx;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.4);
   margin-top: 4rpx;
 }
 
@@ -302,81 +446,6 @@
 .result-wrong {
   font-size: 24rpx;
   color: rgba(255, 255, 255, 0.4);
-}
-
-/* === 情绪 === */
-.emotion-options {
-  display: flex;
-  justify-content: space-around;
-  margin: 16rpx 0;
-}
-
-.emotion-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4rpx;
-  padding: 12rpx 16rpx;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1rpx solid rgba(255, 255, 255, 0.06);
-}
-
-.emotion-btn.selected {
-  background: rgba(219, 164, 96, 0.12);
-  border-color: rgba(219, 164, 96, 0.4);
-}
-
-.emotion-emoji {
-  font-size: 36rpx;
-}
-
-.emotion-label {
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-/* 情绪统计条 */
-.emotion-bars {
-  margin-top: 16rpx;
-  padding-top: 16rpx;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.06);
-}
-
-.emotion-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin-bottom: 8rpx;
-}
-
-.bar-label {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.5);
-  width: 120rpx;
-}
-
-.bar-track {
-  flex: 1;
-  height: 16rpx;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 8rpx;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #dba460, #c4914e);
-  border-radius: 8rpx;
-  transition: width 0.3s;
-}
-
-.bar-pct {
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.35);
-  width: 60rpx;
-  text-align: right;
-  font-family: 'SF Mono', 'Menlo', monospace;
 }
 
 /* === 分析：增强型 === */
@@ -486,4 +555,376 @@
 .loading-text {
   font-size: 24rpx;
   color: rgba(255, 255, 255, 0.4);
+}
+
+/* === 淘汰赛对阵图 === */
+.bracket-round {
+  margin-bottom: 24rpx;
+  background: rgba(0,0,0,0.3);
+  border: 1rpx solid rgba(255,255,255,0.06);
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.bracket-round-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 20rpx 24rpx 16rpx;
+}
+
+.bracket-round-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #dba460;
+}
+
+.bracket-round-dates {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.35);
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.bracket-matches {
+  padding: 0 24rpx;
+}
+
+.bracket-match {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+  gap: 8rpx;
+}
+
+.bracket-slot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 16rpx;
+  background: rgba(255,255,255,0.03);
+  border: 1rpx solid rgba(255,255,255,0.06);
+  border-radius: 10rpx;
+  transition: all 0.2s;
+}
+
+.bracket-slot::after {
+  content: '›';
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.12);
+}
+
+.bracket-slot.filled {
+  background: rgba(219,164,96,0.06);
+  border-color: rgba(219,164,96,0.15);
+}
+
+.bracket-flag {
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.bracket-team {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.7);
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bracket-slot.filled .bracket-team {
+  color: rgba(255,255,255,0.9);
+}
+
+.bracket-score {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #dba460;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.bracket-vs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 120rpx;
+  flex-shrink: 0;
+}
+
+.bracket-vs-text {
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.15);
+  font-weight: 700;
+  letter-spacing: 4rpx;
+}
+
+.bracket-time {
+  font-size: 18rpx;
+  color: rgba(255,255,255,0.3);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  margin-top: 4rpx;
+}
+
+.bracket-divider {
+  height: 1rpx;
+  background: rgba(255,255,255,0.04);
+  margin: 0 40rpx 0 60rpx;
+}
+
+.bracket-arrow {
+  text-align: center;
+  padding: 12rpx 0;
+}
+
+.bracket-arrow text {
+  font-size: 32rpx;
+  color: rgba(219,164,96,0.4);
+}
+
+/* === 球队点击 === */
+.team-tap {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 10rpx;
+  background: rgba(255,255,255,0.03);
+  border: 1rpx solid rgba(255,255,255,0.04);
+}
+
+.team-tap::after {
+  content: '›';
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.15);
+}
+
+/* === 球队详情弹出层 === */
+.team-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.team-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.team-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 85vh;
+  background: rgba(18, 20, 26, 0.98);
+  border-radius: 32rpx 32rpx 0 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.08);
+  z-index: 101;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.team-sheet.show {
+  transform: translateY(0);
+}
+
+.team-sheet-handle {
+  width: 64rpx;
+  height: 6rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3rpx;
+  margin: 16rpx auto 0;
+}
+
+.team-detail-content {
+  padding: 32rpx 36rpx 48rpx;
+}
+
+/* 头部 */
+.team-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 32rpx;
+}
+
+.team-detail-flag {
+  font-size: 72rpx;
+}
+
+.team-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.team-detail-name {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #f6f3ec;
+}
+
+.team-detail-group {
+  font-size: 24rpx;
+  color: #dba460;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+/* 数据卡片 */
+.team-stats-row {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.team-stat-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  border-radius: 16rpx;
+  padding: 20rpx 12rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.team-stat-num {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #dba460;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.team-stat-val {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #dba460;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.team-stat-label {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* 教练 & 核心 */
+.team-info-row {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.team-info-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1rpx solid rgba(255, 255, 255, 0.05);
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+}
+
+.team-info-label {
+  display: block;
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 6rpx;
+}
+
+.team-info-val {
+  display: block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+/* 首发阵容 */
+.team-squad {
+  margin-bottom: 32rpx;
+}
+
+.team-squad-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #dba460;
+  margin-bottom: 16rpx;
+  padding-left: 12rpx;
+  border-left: 4rpx solid #dba460;
+}
+
+.squad-list {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1rpx solid rgba(255, 255, 255, 0.05);
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.squad-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  gap: 16rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.04);
+}
+
+.squad-row:last-child {
+  border-bottom: none;
+}
+
+.squad-pos {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.3);
+  width: 80rpx;
+  text-align: center;
+}
+
+.squad-no {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #dba460;
+  width: 48rpx;
+  text-align: center;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.squad-name {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 500;
+}
+
+.squad-pending {
+  display: block;
+  text-align: center;
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.25);
+  padding: 32rpx 0;
+}
+
+/* 关闭按钮 */
+.team-sheet-close {
+  text-align: center;
+  padding: 24rpx 0;
+  margin: 0 -12rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-radius: 16rpx;
+}
+
+.team-sheet-close text {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.6);
 }

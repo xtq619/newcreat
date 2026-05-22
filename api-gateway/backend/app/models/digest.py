@@ -17,10 +17,22 @@ class DigestSetting(Base):
     smtp_host: Mapped[str] = mapped_column(String(200), default="smtp.qq.com")
     smtp_port: Mapped[int] = mapped_column(Integer, default=465)
     smtp_user: Mapped[str] = mapped_column(String(200), default="")
-    smtp_password: Mapped[str] = mapped_column(Text, default="")  # 授权码
+    smtp_password: Mapped[str] = mapped_column(Text, default="")  # 授权码 (deprecated, use smtp_password_encrypted)
+    smtp_password_encrypted: Mapped[str] = mapped_column(Text, default="", server_default="")
     smtp_sender: Mapped[str] = mapped_column(String(200), default="")
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),
     )
+
+    def get_smtp_password(self) -> str:
+        """Return the SMTP password, decrypting if stored encrypted."""
+        pw = (self.smtp_password_encrypted or "").strip()
+        if pw:
+            try:
+                from app.core.security import decrypt_api_key
+                return decrypt_api_key(pw)
+            except Exception:
+                pass
+        return self.smtp_password or ""

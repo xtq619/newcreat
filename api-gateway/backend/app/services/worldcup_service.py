@@ -3,13 +3,14 @@ import logging
 import re
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.model_registry import ModelRegistry
-from app.models.worldcup import EmotionVote, Guess
+from app.models.worldcup import EmotionVote, Guess, Match, Team
 
 logger = logging.getLogger(__name__)
 
@@ -228,3 +229,109 @@ async def run_match_analysis(db: AsyncSession, team_a: str, team_b: str, _user_i
     except Exception as e:
         _log_analysis_event(team_a, team_b, model.display_name, success=False, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Match CRUD
+# ---------------------------------------------------------------------------
+
+async def get_all_matches(db: AsyncSession) -> list[Match]:
+    result = await db.execute(select(Match).order_by(Match.date, Match.id))
+    return list(result.scalars().all())
+
+
+async def get_match(db: AsyncSession, match_id: int) -> Match | None:
+    result = await db.execute(select(Match).where(Match.id == match_id))
+    return result.scalar_one_or_none()
+
+
+async def update_match(db: AsyncSession, match_id: int, data: dict[str, Any]) -> Match:
+    match = await get_match(db, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="比赛不存在")
+    for k, v in data.items():
+        if v is not None and hasattr(match, k):
+            setattr(match, k, v)
+    match.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(match)
+    return match
+
+
+async def seed_matches(db: AsyncSession, matches_data: list[dict[str, Any]]) -> int:
+    for m in matches_data:
+        match = Match(
+            id=m["id"],
+            date=datetime.strptime(m["date"], "%Y-%m-%d").date(),
+            time=m["time"],
+            team_a_code=m["teamA"]["code"],
+            team_a_name=m["teamA"]["name"],
+            team_a_flag=m["teamA"]["flag"],
+            team_b_code=m["teamB"]["code"],
+            team_b_name=m["teamB"]["name"],
+            team_b_flag=m["teamB"]["flag"],
+            group_name=m.get("group"),
+            stage=m.get("stage", "group"),
+            round=m.get("round"),
+            status=m.get("status", "upcoming"),
+            score_a=m.get("scoreA"),
+            score_b=m.get("scoreB"),
+        )
+        db.add(match)
+    await db.commit()
+    return len(matches_data)
+
+
+# ---------------------------------------------------------------------------
+# Team CRUD
+# ---------------------------------------------------------------------------
+
+async def get_all_teams(db: AsyncSession) -> list[Team]:
+    result = await db.execute(select(Team).order_by(Team.group_name, Team.code))
+    return list(result.scalars().all())
+
+
+async def get_team(db: AsyncSession, code: str) -> Team | None:
+    result = await db.execute(select(Team).where(Team.code == code.upper()))
+    return result.scalar_one_or_none()
+
+
+async def update_team(db: AsyncSession, code: str, data: dict[str, Any]) -> Team:
+    team = await get_team(db, code)
+    if not team:
+        raise HTTPException(status_code=404, detail="球队不存在")
+    field_map = {
+        "fifa_rank": "fifa_rank",
+        "coach": "coach",
+        "key_player": "key_player",
+        "squad_confirmed": "squad_confirmed",
+        "squad_data": "squad_data",
+    }
+    for k, v in data.items():
+        attr = field_map.get(k, k)
+        if v is not None and hasattr(team, attr):
+            setattr(team, attr, v)
+    team.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(team)
+    return team
+
+
+async def seed_teams(db: AsyncSession, teams_data: dict[str, dict[str, Any]]) -> int:
+    for code, t in teams_data.items():
+        team = Team(
+            code=code,
+            name=t.get("name", ""),
+            flag=t.get("flag", ""),
+            group_name=t.get("group", ""),
+            fifa_rank=t.get("fifaRank"),
+            appearances=t.get("appearances", 0),
+            best_result=t.get("best", ""),
+            coach=t.get("coach", ""),
+            key_player=t.get("keyPlayer", ""),
+            squad_confirmed=t.get("squadConfirmed", False),
+            squad_data=t.get("squad") if t.get("squad") else None,
+        )
+        db.add(team)
+    await db.commit()
+    return len(teams_data)

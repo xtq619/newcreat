@@ -61,15 +61,6 @@ export default function MusicPlayer() {
     const audio = audioRef.current;
     audio.volume = 0.12;
     audio.loop = true;
-
-    audio.play().then(() => setPlaying(true)).catch(() => {
-      const startOnClick = () => {
-        audio.play().then(() => setPlaying(true)).catch(() => {});
-        document.removeEventListener('click', startOnClick);
-      };
-      document.addEventListener('click', startOnClick);
-    });
-
     return () => { audio.pause(); };
   }, []);
 

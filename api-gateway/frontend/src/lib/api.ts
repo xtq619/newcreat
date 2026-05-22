@@ -121,6 +121,10 @@ export const api = {
     request(`/battle/history?limit=${limit}&offset=${offset}`),
   getBattleDetail: (id: string) => request(`/battle/history/${id}`),
 
+  // Fetch URL
+  adminFetchUrl: (data: { url: string; title?: string; source_name?: string; category?: string }) =>
+    request('/admin/news/fetch-url', { method: 'POST', body: JSON.stringify(data) }),
+
   // Hub content (admin)
   adminGetHubContent: () => request('/admin/hub/content'),
   adminUpdateHubContent: (key: string, data: { title?: string; content?: string }) =>

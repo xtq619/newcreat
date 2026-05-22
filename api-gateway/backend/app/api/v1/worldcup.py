@@ -78,3 +78,42 @@ async def analyze_match(
         raise HTTPException(status_code=400, detail="缺少队伍名称")
 
     return await worldcup_service.run_match_analysis(db, team_a, team_b, user_id)
+
+
+# ---- Admin endpoints ----
+
+@router.patch("/admin/matches/{match_id}")
+async def admin_update_match(
+    match_id: int,
+    body: dict,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    match = await worldcup_service.update_match(db, match_id, body)
+    return {"id": match.id, "status": match.status, "score_a": match.score_a, "score_b": match.score_b}
+
+
+@router.patch("/admin/teams/{code}")
+async def admin_update_team(
+    code: str,
+    body: dict,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    team = await worldcup_service.update_team(db, code, body)
+    return {"code": team.code, "squad_confirmed": team.squad_confirmed}
+
+
+@router.post("/admin/seed")
+async def admin_seed_data(
+    body: dict,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    match_count = 0
+    team_count = 0
+    if body.get("matches"):
+        match_count = await worldcup_service.seed_matches(db, body["matches"])
+    if body.get("teams"):
+        team_count = await worldcup_service.seed_teams(db, body["teams"])
+    return {"matches_seeded": match_count, "teams_seeded": team_count}

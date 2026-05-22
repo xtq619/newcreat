@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../lib/store';
 import {
   LayoutDashboard, Key, Activity, CreditCard, Cpu, Shield, LogOut,
-  Newspaper, Server, Bot, ArrowLeft, Mail, PanelLeftClose, PanelLeftOpen, Menu, X,
+  Newspaper, Server, Bot, ArrowLeft, Mail, PanelLeftClose, PanelLeftOpen, Menu, X, Link as LinkIcon,
 } from 'lucide-react';
 
 const apiNavItems = [
@@ -22,7 +22,7 @@ const aiNavItems = [
 type Section = 'api' | 'ai';
 
 function getSection(pathname: string): Section {
-  if (pathname.startsWith('/news') || pathname.startsWith('/digest')) return 'ai';
+  if (pathname.startsWith('/news') || pathname.startsWith('/digest') || pathname.startsWith('/fetch-url')) return 'ai';
   return 'api';
 }
 
@@ -144,6 +144,24 @@ export default function Layout() {
             >
               <Shield size={16} />
               {(!collapsed || isMobile) && '管理后台'}
+            </Link>
+          )}
+          {isAdmin() && (
+            <Link
+              to="/fetch-url"
+              className={`flex items-center gap-3 rounded-lg transition-all ${
+                collapsed && !isMobile
+                  ? 'justify-center px-0 py-2.5'
+                  : 'px-3 py-2.5 text-[13px] tracking-wide'
+              } ${
+                location.pathname.startsWith('/fetch-url')
+                  ? 'bg-white text-black shadow-sm'
+                  : 'text-[var(--color-text-muted)] hover:bg-white/[0.06] hover:text-[var(--color-text)]'
+              }`}
+              title={collapsed && !isMobile ? '抓取文章' : undefined}
+            >
+              <LinkIcon size={16} />
+              {(!collapsed || isMobile) && '抓取文章'}
             </Link>
           )}
         </nav>

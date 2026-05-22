@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, async_session
 from app.core.dependencies import require_admin
+from app.models.ai_news import AiNews
 from app.models.user import User
 from app.schemas.ai_news import NewsCreate, NewsList, NewsResponse, NewsUpdate, SendNewsRequest, EncryptNewsRequest
 from app.services import ai_news_service
@@ -26,6 +27,13 @@ class NewsSettingsUpdate(BaseModel):
     fetch_count: int | None = Field(default=None, ge=1, le=50)
     fetch_hour: int | None = Field(default=None, ge=0, le=23)
     fetch_minute: int | None = Field(default=None, ge=0, le=59)
+
+
+class FetchUrlRequest(BaseModel):
+    url: str
+    title: str = ""
+    source_name: str = "手动抓取"
+    category: str = "军事"
 
 
 async def _run_auto_fetch():
@@ -60,6 +68,49 @@ async def trigger_auto_fetch(
 async def list_rss_sources(user=Depends(require_admin)):
     """List built-in RSS sources."""
     return {"sources": RSS_SOURCES}
+
+
+@router.post("/fetch-url")
+async def fetch_single_url(
+    req: FetchUrlRequest,
+    background_tasks: BackgroundTasks,
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """通过硅谷代理抓取单篇文章的全文，AI 翻译后入库（异步：立即返回，后台处理）。"""
+    import uuid as _uuid
+    from datetime import datetime, timezone as _timezone
+    from app.services.news_fetcher import fetch_and_update_article
+
+    article_id = str(_uuid.uuid4())
+    placeholder = AiNews(
+        id=article_id,
+        title=req.title or req.url[:200],
+        summary="正在抓取全文并 AI 翻译中...",
+        content="",
+        category=req.category,
+        source_name=req.source_name or "手动抓取",
+        source_url=req.url[:1000],
+        is_published=False,
+        created_at=datetime.now(_timezone.utc),
+    )
+    db.add(placeholder)
+    await db.commit()
+
+    background_tasks.add_task(
+        fetch_and_update_article,
+        article_id=article_id,
+        url=req.url,
+        title=req.title,
+        source_name=req.source_name,
+        category=req.category,
+    )
+
+    return {
+        "id": article_id,
+        "status": "processing",
+        "message": "文章已创建，正在后台抓取全文并 AI 翻译，请稍候刷新查看",
+    }
 
 
 @router.get("/settings")

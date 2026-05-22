@@ -49,11 +49,30 @@ async def add_model(provider: str, model_name: str, display_name: str,
         print(f"Model added: {model_name} ({provider})")
 
 
+async def rotate_key(old_key_str: str, new_key_str: str):
+    """Re-encrypt all stored secrets from old key to new key."""
+    from app.core.security import rotate_all_keys
+
+    if len(old_key_str) != 44 or len(new_key_str) != 44:
+        print("Error: both keys must be 44-character base64 Fernet keys")
+        sys.exit(1)
+
+    print("Rotating encryption keys...")
+    print(f"  Old key: {old_key_str[:8]}...{old_key_str[-8:]}")
+    print(f"  New key: {new_key_str[:8]}...{new_key_str[-8:]}")
+
+    async with async_session() as db:
+        stats = await rotate_all_keys(db, old_key_str, new_key_str)
+
+    print(f"Done: {stats['models_rotated']} models re-encrypted, {stats['smtp_rotated']} SMTP passwords re-encrypted")
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage:")
         print("  python -m app.cli create-admin <email> <password> [name]")
         print("  python -m app.cli add-model <provider> <model_name> <display_name> <base_url> <api_key> [pricing_input] [pricing_output] [max_tokens]")
+        print("  python -m app.cli rotate-key <old_key> <new_key>")
         sys.exit(1)
 
     cmd = sys.argv[1]
@@ -72,6 +91,11 @@ if __name__ == "__main__":
         pricing_output = float(sys.argv[8]) if len(sys.argv) > 8 else 0.006
         max_tokens = int(sys.argv[9]) if len(sys.argv) > 9 else 4096
         asyncio.run(add_model(provider, model_name, display_name, base_url, api_key, pricing_input, pricing_output, max_tokens))
+    elif cmd == "rotate-key":
+        if len(sys.argv) < 4:
+            print("Usage: python -m app.cli rotate-key <old_key> <new_key>")
+            sys.exit(1)
+        asyncio.run(rotate_key(sys.argv[2], sys.argv[3]))
     else:
         print(f"Unknown command: {cmd}")
         sys.exit(1)

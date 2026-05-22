@@ -79,12 +79,9 @@ module.exports = {
   getMyDigestPref: () => request('/digest'),
   updateMyDigestPref: (data) => request('/digest', { method: 'PATCH', data }),
 
-  // Battle
-  getBattleHistory: (limit = 20, offset = 0) => request(`/battle/history?limit=${limit}&offset=${offset}`),
-  getBattleDetail: (id) => request(`/battle/history/${id}`),
-
   // World Cup
   getWorldCupMatches: () => request('/public/worldcup/matches'),
+  getWorldCupTeams: () => request('/public/worldcup/teams'),
   getWorldCupPrediction: (matchId) => request(`/public/worldcup/matches/${matchId}/prediction`),
   submitGuess: (matchId, data) => request(`/worldcup/guess/${matchId}`, { method: 'POST', data }),
   getMyGuesses: () => request('/worldcup/guesses'),

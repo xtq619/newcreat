@@ -38,6 +38,31 @@ RSS_SOURCES = [
         "url": "https://taskandpurpose.com/feed/",
         "default_category": "军事",
     },
+    {
+        "name": "Army Times",
+        "url": "https://www.armytimes.com/arc/outboundfeeds/rss/?outputType=xml",
+        "default_category": "军事",
+    },
+    {
+        "name": "Navy Times",
+        "url": "https://www.navytimes.com/arc/outboundfeeds/rss/?outputType=xml",
+        "default_category": "军事",
+    },
+    {
+        "name": "Marine Corps Times",
+        "url": "https://www.marinecorpstimes.com/arc/outboundfeeds/rss/?outputType=xml",
+        "default_category": "军事",
+    },
+    {
+        "name": "Air Force Times",
+        "url": "https://www.airforcetimes.com/arc/outboundfeeds/rss/?outputType=xml",
+        "default_category": "军事",
+    },
+    {
+        "name": "Air & Space Forces",
+        "url": "https://www.airandspaceforces.com/feed/",
+        "default_category": "军事",
+    },
 ]
 
 HTTP_TIMEOUT = httpx.Timeout(20.0, connect=10.0)
@@ -99,7 +124,7 @@ def _extract_article_text(html: str) -> str:
         text = tree.text_content()
         # Clean up whitespace
         text = re.sub(r'\s+', ' ', text).strip()
-        return text[:8000]
+        return text[:30000]
     except Exception:
         return ""
 
@@ -151,7 +176,7 @@ def _strip_html(html: str) -> str:
 
 
 def _build_prompt(title: str, content: str, default_category: str) -> str:
-    content_snippet = content[:8000] if content else ""
+    content_snippet = content[:30000] if content else ""
     return f"""你是一个军事新闻编辑。请阅读以下英文军事文章，完成三个任务：
 
 任务1 - 中文标题：将英文标题翻译为简洁的中文标题（不超过40字）
@@ -290,7 +315,7 @@ async def _process_one_entry(
     return AiNews(
         title=final_title[:300],
         summary=summary,
-        content=translated[:8000],
+        content=translated[:30000],
         category=category,
         source_name=entry["source_name"],
         source_url=entry["link"][:1000],
@@ -337,20 +362,131 @@ async def fetch_from_proxy(per_source: int = 5) -> list[dict]:
     return entries
 
 
+async def fetch_single_article(
+    url: str,
+    db: AsyncSession,
+    title: str = "",
+    source_name: str = "手动抓取",
+    category: str = "军事",
+) -> AiNews | None:
+    """Fetch a single article via Silicon Valley proxy, then AI translate + summarize.
+
+    Returns an AiNews object (not yet saved to DB), or None if translation failed.
+    """
+    # Step 1: Fetch full text via Silicon Valley proxy
+    fulltext = ""
+    proxy_title = title
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0), follow_redirects=True, verify=False) as client:
+            resp = await client.get(
+                f"{SILICON_VALLEY_PROXY}/fetch_article",
+                params={"url": url},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            fulltext = data.get("fulltext", "") or ""
+            if not proxy_title:
+                proxy_title = data.get("title", "") or ""
+            logger.info("Proxy fetched article from %s: %d chars", url[:60], len(fulltext))
+    except Exception as e:
+        logger.warning("Silicon Valley proxy fetch failed for %s: %s", url[:60], e)
+        # Still try to fetch directly
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
+                resp = await client.get(url, headers={"User-Agent": USER_AGENT})
+                resp.raise_for_status()
+                fulltext = _extract_article_text(resp.text)
+                logger.info("Direct fetch from %s: %d chars", url[:60], len(fulltext))
+        except Exception as e2:
+            logger.warning("Direct fetch also failed for %s: %s", url[:60], e2)
+            return None
+
+    if not fulltext:
+        logger.warning("Empty article text for %s", url[:60])
+        return None
+
+    # Step 2: Get an enabled model
+    model = await get_first_enabled_model(db)
+    if not model:
+        logger.error("No enabled model found for single article fetch")
+        return None
+
+    # Step 3: AI translate + summarize
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
+        cn_title, summary, final_category, translated = await summarize_with_ai(
+            proxy_title, fulltext, model, category, client,
+        )
+
+    if not translated:
+        logger.warning("Translation failed for single article: %s", url[:60])
+        return None
+
+    final_title = cn_title.strip() if cn_title and cn_title.strip() else proxy_title
+
+    return AiNews(
+        title=final_title[:300],
+        summary=summary,
+        content=translated[:30000],
+        category=final_category,
+        source_name=source_name,
+        source_url=url[:1000],
+        is_published=True,
+        is_sensitive=source_name in SENSITIVE_SOURCES,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+async def fetch_and_update_article(
+    article_id: str, url: str, title: str = "", source_name: str = "手动抓取", category: str = "军事",
+):
+    """Background task: fetch full text via proxy, AI translate, and update the article in DB."""
+    from app.core.database import async_session
+
+    logger.info("Background fetch started for article %s: %s", article_id, url[:60])
+    try:
+        async with async_session() as db:
+            # Get the placeholder article
+            result = await db.execute(select(AiNews).where(AiNews.id == article_id))
+            article = result.scalar_one_or_none()
+            if not article:
+                logger.error("Article %s not found for background fetch", article_id)
+                return
+
+            # Fetch + translate
+            fetched = await fetch_single_article(
+                url=url, db=db, title=title, source_name=source_name, category=category,
+            )
+            if fetched:
+                article.title = fetched.title
+                article.summary = fetched.summary
+                article.content = fetched.content
+                article.category = fetched.category
+                article.source_url = fetched.source_url
+                article.is_published = True
+                logger.info("Background fetch succeeded for article %s: %s", article_id, article.title[:40])
+            else:
+                article.summary = "抓取失败：无法获取文章内容或 AI 翻译失败"
+                logger.warning("Background fetch failed for article %s", article_id)
+
+            await db.commit()
+    except Exception:
+        logger.exception("Background fetch error for article %s", article_id)
+
+
 async def auto_fetch_news(db: AsyncSession, total_count: int = 10) -> dict:
     """Main pipeline: fetch RSS (parallel) → batch dedup → AI summarize (concurrent) → save.
 
     Evenly distributes fetch across RSS sources.
-    Hard timeout: 300s total.
+    Hard timeout: 600s total.
     """
     try:
         return await asyncio.wait_for(
             _auto_fetch_news_impl(db, total_count),
-            timeout=300.0,
+            timeout=600.0,
         )
     except asyncio.TimeoutError:
-        logger.error("Auto-fetch timed out after 300s")
-        return {"error": "抓取超时（300秒），部分 RSS 源可能不可达", "fetched": 0, "created": 0, "skipped": 0, "errors": 0}
+        logger.error("Auto-fetch timed out after 600s")
+        return {"error": "抓取超时（600秒），部分 RSS 源可能不可达", "fetched": 0, "created": 0, "skipped": 0, "errors": 0}
 
 
 async def _auto_fetch_news_impl(db: AsyncSession, total_count: int) -> dict:

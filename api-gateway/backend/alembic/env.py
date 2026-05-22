@@ -18,6 +18,7 @@ from app.models.battle import BattleRecord
 from app.models.digest import DigestSetting
 from app.models.user_digest import UserDigestPref
 from app.models.news_setting import NewsSetting
+from app.models.encryption_key import EncryptionKey
 from app.models.hub_content import HubContent
 from app.models.worldcup import Guess, EmotionVote
 

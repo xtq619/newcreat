@@ -16,6 +16,7 @@ import Battle from './pages/Battle';
 import PublicFeedback from './pages/PublicFeedback';
 import AiNews from './pages/AiNews';
 import Digest from './pages/Digest';
+import FetchUrl from './pages/FetchUrl';
 import MusicPlayer from './components/MusicPlayer';
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="/admin" element={<Admin />} />
               <Route path="/news" element={<AiNews />} />
               <Route path="/digest" element={<Digest />} />
+              <Route path="/fetch-url" element={<FetchUrl />} />
             </Route>
           </Route>
 

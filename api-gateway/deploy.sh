@@ -15,6 +15,9 @@ echo "========================================"
 # 1. 检查 .env
 if [ ! -f .env ]; then
     echo "[!] .env 文件不存在，正在创建..."
+    # WARNING: ENCRYPTION_KEY 用于加密模型 API Key 和邮箱授权码。
+    # 一旦有数据写入数据库，切勿更改此密钥，否则所有已加密数据将永久不可解密。
+    # 请妥善备份 .env 文件。
     cat > .env <<EOF
 DB_USER=gateway
 DB_PASSWORD=$(openssl rand -hex 16)
@@ -23,7 +26,10 @@ SECRET_KEY=$(openssl rand -hex 32)
 ENCRYPTION_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null || echo "CHANGE_ME")
 DOMAIN=$DOMAIN
 EOF
-    echo "    .env 已创建，请检查并修改后重新运行此脚本"
+    echo "    .env 已创建。"
+    echo "    重要：ENCRYPTION_KEY 已生成，请妥善备份此文件。"
+    echo "    切勿在数据库有数据后重新生成 ENCRYPTION_KEY。"
+    echo "    如需轮换密钥: docker compose exec backend python -m app.cli rotate-key <旧密钥> <新密钥>"
     exit 1
 fi
 

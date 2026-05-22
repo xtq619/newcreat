@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     STREAM_READ_TIMEOUT: int = 60
     WX_APPID: str = ""
     WX_SECRET: str = ""
+    WORLDCUP_SCORES_API_URL: str = ""  # Optional: external API for live scores
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:8000",

@@ -44,8 +44,12 @@ async def update_smtp_settings(
     data = req.model_dump(exclude_unset=True)
 
     if "smtp_password" in data:
-        if not data["smtp_password"]:
-            del data["smtp_password"]
+        pw = data.pop("smtp_password")
+        if pw:
+            from app.core.security import encrypt_api_key
+            data["smtp_password_encrypted"] = encrypt_api_key(pw)
+        # Also update plaintext for backward compatibility
+        setting.smtp_password = pw or ""
 
     for k, v in data.items():
         setattr(setting, k, v)
@@ -65,8 +69,9 @@ async def send_test_email(
     from app.services.notifier import send_digest_email
 
     setting = await _get_or_create(db)
+    smtp_pw = setting.get_smtp_password()
 
-    if not setting.smtp_user or not setting.smtp_password:
+    if not setting.smtp_user or not smtp_pw:
         raise HTTPException(status_code=400, detail="请先配置 SMTP 邮箱信息")
 
     test_content = "# 测试邮件\n\n这是一封测试邮件，用于验证 SMTP 配置是否正确。\n\n如果你收到这封邮件，说明配置成功！"
@@ -76,7 +81,7 @@ async def send_test_email(
         smtp_host=setting.smtp_host,
         smtp_port=setting.smtp_port,
         smtp_user=setting.smtp_user,
-        smtp_password=setting.smtp_password,
+        smtp_password=smtp_pw,
         smtp_sender=setting.smtp_sender or setting.smtp_user,
         recipients=[recipient_email],
         subject_prefix="[测试] ",

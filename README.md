@@ -12,7 +12,7 @@ D:\newcreat\                     ← GitHub: xtq619/newcreat
 │   ├── nginx/                   # Nginx 反向代理配置
 │   └── docker-compose.yml       # Docker 编排
 │
-├── miniprogram/                 # 微信小程序前端
+├── miniprogram/                 # 微信小程序（首页/世界杯/建议留言）
 │
 ├── image/                       # 项目图片资源
 │
@@ -67,13 +67,28 @@ D:\newcreat\                     ← GitHub: xtq619/newcreat
 ### 3. 模型擂台（Battle）
 - 两个 AI 模型围绕话题多轮辩论，裁判 AI 总结评判
 - WebSocket 实时推送对战过程
+- 仅 Web 端可用（小程序端因审核限制已移除）
 
-### 4. 世界杯
+### 4. 世界杯（2026 美加墨）
 
-- 赛程展示（12 组 48 队 + 淘汰赛，北京时间）
-- 竞猜预测（提交比分，记录准确率）
-- 情绪投票（激动/紧张/失望/狂喜/平静）
-- 赛事分析（实力对比、关键球员、预测）
+**后端数据托管**（2026-05-20）
+- 比赛和球队数据从硬编码 JS 迁移到 PostgreSQL（`worldcup_matches` + `worldcup_teams` 表）
+- 公开 API：`GET /api/v1/public/worldcup/matches`、`/teams`（无需登录）
+- 管理 API：`PATCH /worldcup/admin/matches/{id}` 更新比分/状态，`/teams/{code}` 更新大名单
+- 种子脚本：`scripts/seed_worldcup.py` 从 JS 文件初始化数据库
+- 前端优先拉 API 数据，网络失败时自动降级到本地数据
+
+**自动更新**（2026-05-20）
+- APScheduler 每 30 分钟自动更新比赛状态：upcoming → live → finished
+- 预留外部比分 API 接口（`.env` 中配置 `WORLDCUP_SCORES_API_URL` 即可启用自动抓分）
+- 服务文件：`app/services/match_updater.py`
+
+**功能**
+- 赛程展示（12 组 48 队 + 淘汰赛，北京时间），按日期选择器快速切换
+- 竞猜预测（全部 72 场小组赛，提交比分，记录准确率）
+- 智能分析（AI 多维度赛前分析：战术、关键球员、比分预测）
+- 球队详情弹出层（FIFA 排名、历史最佳、主教练、26 人大名单）
+- 淘汰赛对阵图（32 强 → 决赛，6 轮可视化）
 
 ### 5. 其他
 - 建议留言（用户反馈 + 管理员回复）
@@ -221,10 +236,18 @@ systemctl reload nginx
 | `api-gateway/backend/app/services/crypto.py` | AES 加密工具 |
 | `api-gateway/backend/app/services/notifier.py` | 邮件发送（普通 + 加密） |
 | `api-gateway/backend/app/api/v1/news_admin.py` | 资讯管理 API（CRUD + 发送 + 加密） |
+| `api-gateway/backend/app/models/worldcup.py` | 世界杯数据模型（Match/Team/Guess/EmotionVote） |
+| `api-gateway/backend/app/services/worldcup_service.py` | 世界杯业务逻辑（竞猜/分析/比赛CRUD/种子） |
+| `api-gateway/backend/app/services/match_updater.py` | 世界杯比赛状态自动更新（定时任务） |
+| `api-gateway/backend/app/api/v1/worldcup.py` | 世界杯管理 API（竞猜/情绪/分析/比分更新） |
+| `api-gateway/backend/app/api/public/worldcup.py` | 世界杯公开 API（比赛/球队，无需登录） |
+| `api-gateway/backend/scripts/seed_worldcup.py` | 世界杯种子脚本（从 JS 初始化 DB） |
 | `api-gateway/frontend/public/decrypt.html` | 离线解密工具（独立 HTML） |
 | `api-gateway/frontend/src/pages/Admin.tsx` | 管理后台页面 |
 | `miniprogram/pages/hub/hub.js` | 小程序首页入口 |
-| `miniprogram/pages/battle/battle.js` | 模型擂台页面 |
+| `miniprogram/pages/worldcup/worldcup.js` | 世界杯页面（赛程/竞猜/分析/球队） |
+| `miniprogram/pages/worldcup/matches.js` | 世界杯赛程数据（local fallback） |
+| `miniprogram/pages/worldcup/teams.js` | 世界杯球队数据（local fallback） |
 | `miniprogram/pages/feedback/feedback.js` | 建议留言页面 |
 | `miniprogram/utils/api.js` | 小程序 API 封装 |
 
@@ -238,6 +261,8 @@ systemctl reload nginx
 - 后端微信相关配置在 `backend/.env`（WX_APPID、WX_SECRET）
 - 数据库迁移自动执行（entrypoint.sh 中 `alembic upgrade head`）
 - 自由時報文章自动标记 `is_sensitive=true, is_published=false`，不在网页和小程序推送
+- 世界杯比赛/球队数据已托管到后端 DB，前端优先 API 拉取，网络失败时降级到本地 JS
+- 世界杯种子数据通过 `python scripts/seed_worldcup.py` 初始化，部署后需运行一次
 
 ### 服务器
 

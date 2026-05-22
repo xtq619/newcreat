@@ -3,8 +3,8 @@
 
   <!-- 顶部标题 -->
   <view class="wc-hero">
-    <text class="wc-title">2026 世界杯</text>
-    <text class="wc-subtitle">🇺🇸🇨🇦🇲🇽 美国 · 加拿大 · 墨西哥</text>
+    <text class="wc-title">美加墨世界杯</text>
+    <text class="wc-subtitle">FIFA World Cup 2026</text>
     <view class="countdown" wx:if="{{daysLeft > 0}}">
       <text class="countdown-num">{{daysLeft}}</text>
       <text class="countdown-unit">天后开赛</text>
@@ -17,76 +17,122 @@
     </view>
   </view>
 
-  <!-- 二级 Tab -->
+  <!-- 二级 Tab：按时间线排列 -->
   <view class="sub-tabs">
-    <view class="sub-tab {{activeTab === 'schedule' ? 'active' : ''}}" bindtap="switchTab" data-tab="schedule">
-      <text>赛程</text>
+    <view class="sub-tab {{activeTab === 'group' ? 'active' : ''}}" bindtap="switchTab" data-tab="group">
+      <text>小组赛</text>
+    </view>
+    <view class="sub-tab {{activeTab === 'knockout' ? 'active' : ''}}" bindtap="switchTab" data-tab="knockout">
+      <text>淘汰赛</text>
     </view>
     <view class="sub-tab {{activeTab === 'guess' ? 'active' : ''}}" bindtap="switchTab" data-tab="guess">
-      <text>竞猜</text>
-    </view>
-    <view class="sub-tab {{activeTab === 'emotion' ? 'active' : ''}}" bindtap="switchTab" data-tab="emotion">
-      <text>情绪</text>
+      <text>我的预测</text>
     </view>
     <view class="sub-tab {{activeTab === 'analysis' ? 'active' : ''}}" bindtap="switchTab" data-tab="analysis">
-      <text>分析</text>
+      <text>智能分析</text>
     </view>
   </view>
 
-  <!-- 赛程 Tab -->
-  <view class="tab-content" wx:if="{{activeTab === 'schedule'}}">
-    <!-- 筛选 -->
-    <view class="filter-row">
-      <view class="filter-btn {{stageFilter === 'all' ? 'active' : ''}}" bindtap="filterStage" data-stage="all">全部</view>
-      <view class="filter-btn {{stageFilter === 'group' ? 'active' : ''}}" bindtap="filterStage" data-stage="group">小组赛</view>
-      <view class="filter-btn {{stageFilter === 'knockout' ? 'active' : ''}}" bindtap="filterStage" data-stage="knockout">淘汰赛</view>
+  <!-- ===== 小组赛 Tab ===== -->
+  <view class="tab-content" wx:if="{{activeTab === 'group'}}">
+    <!-- 横向日期选择器 -->
+    <scroll-view class="date-strip" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="date-strip-inner">
+        <view
+          wx:for="{{groupDateList}}"
+          wx:key="date"
+          class="date-chip {{activeDate === item.date ? 'active' : ''}}"
+          bindtap="selectDate"
+          data-date="{{item.date}}"
+        >
+          <text class="date-chip-month">{{item.month}}月</text>
+          <text class="date-chip-day">{{item.day}}</text>
+          <text class="date-chip-week">周{{item.weekday}}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 当天比赛 -->
+    <view wx:if="{{activeDateMatches.length === 0}}" class="empty-hint">
+      <text>当天无比赛</text>
     </view>
+    <view wx:for="{{activeDateMatches}}" wx:key="id" class="match-card glass-card">
+      <view class="match-stage group-tag">
+        <text>组{{item.group}} 第{{item.round}}轮</text>
+        <text class="match-card-time">{{item.time}}</text>
+      </view>
 
-    <!-- 赛程列表 -->
-    <view class="match-list">
-      <view wx:for="{{filteredMatches}}" wx:key="id">
-        <!-- 日期分组 -->
-        <view class="date-header" wx:if="{{item.showDate}}">
-          <text class="date-text">{{item.dateLabel}}</text>
+      <view class="match-teams">
+        <view class="team-side" bindtap="onTeamTap" data-code="{{item.teamA.code}}">
+          <text class="team-flag">{{item.teamA.flag}}</text>
+          <text class="team-name">{{item.teamA.name}}</text>
         </view>
 
-        <view class="match-card glass-card">
-          <view class="match-stage" wx:if="{{item.stage !== 'group'}}">
-            <text>{{item.stageLabel}}</text>
-          </view>
-          <view class="match-stage group-tag" wx:else>
-            <text>组{{item.group}}</text>
-          </view>
-
-          <view class="match-teams">
-            <view class="team-side">
-              <text class="team-flag">{{item.teamA.flag}}</text>
-              <text class="team-name">{{item.teamA.name}}</text>
-            </view>
-
-            <view class="match-center">
-              <text wx:if="{{item.status === 'finished'}}" class="match-score">{{item.scoreA}} - {{item.scoreB}}</text>
-              <text wx:elif="{{item.status === 'live'}}" class="match-live">进行中</text>
-              <text wx:else class="match-time">{{item.time}}</text>
-              <text class="match-tz">北京时间</text>
-            </view>
-
-            <view class="team-side team-right">
-              <text class="team-name">{{item.teamB.name}}</text>
-              <text class="team-flag">{{item.teamB.flag}}</text>
-            </view>
-          </view>
+        <view class="guess-inputs compact">
+          <input class="guess-score" type="number" maxlength="2" value="{{item._guessA || ''}}" placeholder="?" data-id="{{item.id}}" data-side="A" bindinput="onQuickGuessInput"/>
+          <text class="guess-sep">:</text>
+          <input class="guess-score" type="number" maxlength="2" value="{{item._guessB || ''}}" placeholder="?" data-id="{{item.id}}" data-side="B" bindinput="onQuickGuessInput"/>
         </view>
+
+        <view class="team-side team-right" bindtap="onTeamTap" data-code="{{item.teamB.code}}">
+          <text class="team-name">{{item.teamB.name}}</text>
+          <text class="team-flag">{{item.teamB.flag}}</text>
+        </view>
+      </view>
+
+      <view class="match-card-footer">
+        <view wx:if="{{item._guessed}}" class="guess-badge">
+          <text>已预测 {{item._guessA}}:{{item._guessB}}</text>
+        </view>
+        <view wx:elif="{{item._guessResult}}" class="guess-badge {{item._guessResult.correct ? 'correct' : 'wrong'}}">
+          <text>{{item._guessResult.correct ? '预测正确！' : '实际 ' + item.scoreA + ':' + item.scoreB}}</text>
+        </view>
+        <view wx:else></view>
+        <button class="btn-primary guess-submit-sm" data-id="{{item.id}}" bindtap="submitGuess">预测</button>
       </view>
     </view>
   </view>
 
-  <!-- 竞猜 Tab -->
+  <!-- ===== 淘汰赛 Tab ===== -->
+  <view class="tab-content" wx:if="{{activeTab === 'knockout'}}">
+    <view wx:for="{{bracketRounds}}" wx:key="key" class="bracket-round">
+      <view class="bracket-round-header">
+        <text class="bracket-round-title">{{item.label}}</text>
+        <text class="bracket-round-dates">{{item.dates}}</text>
+      </view>
+      <view class="bracket-matches">
+        <block wx:for="{{item.matches}}" wx:for-item="m" wx:key="id">
+          <view class="bracket-match">
+            <view class="bracket-slot {{m.teamA.code !== 'TBD' ? 'filled' : ''}}" bindtap="onTeamTap" data-code="{{m.teamA.code}}">
+              <text class="bracket-flag">{{m.teamA.flag}}</text>
+              <text class="bracket-team">{{m.teamA.name}}</text>
+              <text wx:if="{{m.status === 'finished'}}" class="bracket-score">{{m.scoreA}}</text>
+            </view>
+            <view class="bracket-vs">
+              <text class="bracket-vs-text">VS</text>
+              <text class="bracket-time">{{m.dateLabel}} {{m.time}}</text>
+            </view>
+            <view class="bracket-slot {{m.teamB.code !== 'TBD' ? 'filled' : ''}}" bindtap="onTeamTap" data-code="{{m.teamB.code}}">
+              <text class="bracket-flag">{{m.teamB.flag}}</text>
+              <text class="bracket-team">{{m.teamB.name}}</text>
+              <text wx:if="{{m.status === 'finished'}}" class="bracket-score">{{m.scoreB}}</text>
+            </view>
+          </view>
+          <view wx:if="{{index < item.matches.length - 1}}" class="bracket-divider"></view>
+        </block>
+      </view>
+      <view wx:if="{{index < bracketRounds.length - 1}}" class="bracket-arrow">
+        <text>↓</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 我的预测 Tab ===== -->
   <view class="tab-content" wx:if="{{activeTab === 'guess'}}">
     <view class="guess-stats glass-card">
       <view class="stat-item">
         <text class="stat-num">{{guessStats.total}}</text>
-        <text class="stat-label">已竞猜</text>
+        <text class="stat-label">已预测</text>
       </view>
       <view class="stat-item">
         <text class="stat-num">{{guessStats.correct}}</text>
@@ -98,141 +144,186 @@
       </view>
     </view>
 
-    <view class="match-list">
-      <view wx:for="{{guessableMatches}}" wx:key="id" class="match-card glass-card">
+    <view wx:if="{{guessDateGroups.length === 0}}" class="empty-hint">
+      <text>暂无预测，去小组赛页面猜比分吧</text>
+    </view>
+    <view wx:for="{{guessDateGroups}}" wx:key="date">
+      <view class="date-header">
+        <text class="date-text">{{item.label}}</text>
+      </view>
+      <view wx:for="{{item.matches}}" wx:for-item="m" wx:key="id" class="match-card glass-card">
         <view class="match-stage group-tag">
-          <text>{{item.stage === 'group' ? '组' + item.group : item.stageLabel}}</text>
+          <text>组{{m.group}} 第{{m.round}}轮</text>
         </view>
-
         <view class="match-teams">
-          <view class="team-side">
-            <text class="team-flag">{{item.teamA.flag}}</text>
-            <text class="team-name">{{item.teamA.name}}</text>
+          <view class="team-side" bindtap="onTeamTap" data-code="{{m.teamA.code}}">
+            <text class="team-flag">{{m.teamA.flag}}</text>
+            <text class="team-name">{{m.teamA.name}}</text>
           </view>
-
           <view class="guess-inputs">
-            <input class="guess-score" type="number" maxlength="2" value="{{item.myGuessA || ''}}" placeholder="0" data-id="{{item.id}}" data-side="A" bindinput="onGuessInput"/>
+            <input class="guess-score" type="number" maxlength="2" value="{{m.myGuessA || ''}}" placeholder="0" data-id="{{m.id}}" data-side="A" bindinput="onGuessInput"/>
             <text class="guess-sep">-</text>
-            <input class="guess-score" type="number" maxlength="2" value="{{item.myGuessB || ''}}" placeholder="0" data-id="{{item.id}}" data-side="B" bindinput="onGuessInput"/>
+            <input class="guess-score" type="number" maxlength="2" value="{{m.myGuessB || ''}}" placeholder="0" data-id="{{m.id}}" data-side="B" bindinput="onGuessInput"/>
           </view>
-
-          <view class="team-side team-right">
-            <text class="team-name">{{item.teamB.name}}</text>
-            <text class="team-flag">{{item.teamB.flag}}</text>
+          <view class="team-side team-right" bindtap="onTeamTap" data-code="{{m.teamB.code}}">
+            <text class="team-name">{{m.teamB.name}}</text>
+            <text class="team-flag">{{m.teamB.flag}}</text>
           </view>
         </view>
-
-        <button class="btn-primary guess-submit" data-id="{{item.id}}" bindtap="submitGuess">提交预测</button>
-
-        <view wx:if="{{item.guessResult}}" class="guess-result">
-          <text class="{{item.guessResult.correct ? 'result-correct' : 'result-wrong'}}">
-            {{item.guessResult.correct ? '预测正确！' : '实际比分 ' + item.scoreA + ' - ' + item.scoreB}}
+        <button class="btn-primary guess-submit" data-id="{{m.id}}" bindtap="submitGuess">更新预测</button>
+        <view wx:if="{{m.guessResult}}" class="guess-result">
+          <text class="{{m.guessResult.correct ? 'result-correct' : 'result-wrong'}}">
+            {{m.guessResult.correct ? '预测正确！' : '实际比分 ' + m.scoreA + ' - ' + m.scoreB}}
           </text>
         </view>
       </view>
     </view>
   </view>
 
-  <!-- 情绪 Tab -->
-  <view class="tab-content" wx:if="{{activeTab === 'emotion'}}">
-    <view class="match-list">
-      <view wx:for="{{emotionMatches}}" wx:key="id" class="match-card glass-card">
-        <view class="match-teams compact">
+  <!-- ===== 智能分析 Tab ===== -->
+  <view class="tab-content" wx:if="{{activeTab === 'analysis'}}">
+    <scroll-view class="date-strip" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="date-strip-inner">
+        <view
+          wx:for="{{analysisDateList}}"
+          wx:key="date"
+          class="date-chip {{activeAnalysisDate === item.date ? 'active' : ''}}"
+          bindtap="selectAnalysisDate"
+          data-date="{{item.date}}"
+        >
+          <text class="date-chip-month">{{item.month}}月</text>
+          <text class="date-chip-day">{{item.day}}</text>
+          <text class="date-chip-week">周{{item.weekday}}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{analysisDateMatches.length === 0}}" class="empty-hint">
+      <text>该日无分析</text>
+    </view>
+    <view wx:for="{{analysisDateMatches}}" wx:key="id" class="match-card glass-card">
+      <view class="match-teams compact">
+        <view class="team-tap" bindtap="onTeamTap" data-code="{{item.teamA.code}}">
           <text class="team-flag">{{item.teamA.flag}}</text>
           <text class="team-name-sm">{{item.teamA.name}}</text>
-          <text class="match-time-sm">{{item.date}} {{item.time}}</text>
+        </view>
+        <text class="match-vs">VS</text>
+        <view class="team-tap" bindtap="onTeamTap" data-code="{{item.teamB.code}}">
           <text class="team-name-sm">{{item.teamB.name}}</text>
           <text class="team-flag">{{item.teamB.flag}}</text>
         </view>
-
-        <view class="emotion-options">
-          <view wx:for="{{emotions}}" wx:for-item="emo" wx:key="key" class="emotion-btn {{item.myEmotion === emo.key ? 'selected' : ''}}" data-id="{{item.id}}" data-emotion="{{emo.key}}" bindtap="submitEmotion">
-            <text class="emotion-emoji">{{emo.emoji}}</text>
-            <text class="emotion-label">{{emo.label}}</text>
-          </view>
-        </view>
-
-        <!-- 情绪统计 -->
-        <view wx:if="{{item.emotionStats}}" class="emotion-bars">
-          <view wx:for="{{item.emotionStats}}" wx:for-item="stat" wx:key="key" class="emotion-bar-row">
-            <text class="bar-label">{{stat.emoji}} {{stat.label}}</text>
-            <view class="bar-track">
-              <view class="bar-fill" style="width: {{stat.pct}}%"></view>
-            </view>
-            <text class="bar-pct">{{stat.pct}}%</text>
-          </view>
-        </view>
       </view>
+
+      <view wx:if="{{item.analysisData}}" class="analysis-sections">
+        <view wx:if="{{item.analysisData.raw_text}}">
+          <text class="section-body">{{item.analysisData.raw_text}}</text>
+        </view>
+        <block wx:else>
+          <view class="analysis-section">
+            <text class="section-title">战术风格</text>
+            <text class="section-body">{{item.analysisData.team_styles}}</text>
+          </view>
+          <view class="analysis-section">
+            <text class="section-title">战术博弈</text>
+            <text class="section-body">{{item.analysisData.tactical_comparison}}</text>
+          </view>
+          <view class="analysis-section">
+            <text class="section-title">关键球员</text>
+            <text class="section-body">{{item.analysisData.key_players}}</text>
+          </view>
+          <view wx:if="{{item.showAllAnalysis}}" class="analysis-extended">
+            <view class="analysis-section">
+              <text class="section-title">历史交锋</text>
+              <text class="section-body">{{item.analysisData.historical}}</text>
+            </view>
+            <view class="analysis-section">
+              <text class="section-title">预计阵容</text>
+              <text class="section-body">{{item.analysisData.lineup_prediction}}</text>
+            </view>
+            <view class="analysis-section">
+              <text class="section-title">伤病情况</text>
+              <text class="section-body">{{item.analysisData.injury_concerns}}</text>
+            </view>
+            <view class="analysis-section">
+              <text class="section-title">胜率参考</text>
+              <text class="section-body">{{item.analysisData.odds_reference}}</text>
+            </view>
+          </view>
+          <view class="analysis-toggle" bindtap="toggleAnalysisDetail" data-id="{{item.id}}">
+            <text>{{item.showAllAnalysis ? '收起 ∧' : '展开更多分析 ∨'}}</text>
+          </view>
+          <view class="score-prediction-box">
+            <text class="prediction-label">比分预测</text>
+            <text class="prediction-text">{{item.analysisData.score_prediction}}</text>
+          </view>
+        </block>
+        <text wx:if="{{item.analysisModel}}" class="model-tag">分析模型: {{item.analysisModel}}</text>
+      </view>
+
+      <view wx:elif="{{item.analysisLoading}}" class="analysis-loading">
+        <view class="loading-spinner"></view>
+        <text class="loading-text">稍等1分钟，正在分析中</text>
+      </view>
+
+      <button wx:else class="btn-primary analyze-btn" data-idx="{{index}}" data-id="{{item.id}}" bindtap="analyzeMatch">
+        开始分析
+      </button>
     </view>
   </view>
 
-  <!-- 分析 Tab -->
-  <view class="tab-content" wx:if="{{activeTab === 'analysis'}}">
-    <view class="match-list">
-      <view wx:for="{{analyzableMatches}}" wx:key="id" class="match-card glass-card">
-        <view class="match-teams compact">
-          <text class="team-flag">{{item.teamA.flag}}</text>
-          <text class="team-name-sm">{{item.teamA.name}}</text>
-          <text class="match-vs">VS</text>
-          <text class="team-name-sm">{{item.teamB.name}}</text>
-          <text class="team-flag">{{item.teamB.flag}}</text>
-        </view>
-
-        <!-- 分析结果（结构化） -->
-        <view wx:if="{{item.analysisData}}" class="analysis-sections">
-          <view wx:if="{{item.analysisData.raw_text}}">
-            <text class="section-body">{{item.analysisData.raw_text}}</text>
+  <!-- 球队详情弹出层 -->
+  <view class="team-overlay {{showTeamDetail ? 'show' : ''}}" bindtap="closeTeamDetail">
+    <view class="team-sheet {{showTeamDetail ? 'show' : ''}}" catchtap="">
+      <view class="team-sheet-handle"></view>
+      <view wx:if="{{teamDetail}}" class="team-detail-content">
+        <view class="team-detail-header">
+          <text class="team-detail-flag">{{teamDetail.flag}}</text>
+          <view class="team-detail-title">
+            <text class="team-detail-name">{{teamDetail.name}}</text>
+            <text class="team-detail-group">组 {{teamDetail.group}}</text>
           </view>
-          <block wx:else>
-            <view class="analysis-section">
-              <text class="section-title">战术风格</text>
-              <text class="section-body">{{item.analysisData.team_styles}}</text>
-            </view>
-            <view class="analysis-section">
-              <text class="section-title">战术博弈</text>
-              <text class="section-body">{{item.analysisData.tactical_comparison}}</text>
-            </view>
-            <view class="analysis-section">
-              <text class="section-title">关键球员</text>
-              <text class="section-body">{{item.analysisData.key_players}}</text>
-            </view>
-            <view wx:if="{{item.showAllAnalysis}}" class="analysis-extended">
-              <view class="analysis-section">
-                <text class="section-title">历史交锋</text>
-                <text class="section-body">{{item.analysisData.historical}}</text>
-              </view>
-              <view class="analysis-section">
-                <text class="section-title">预计阵容</text>
-                <text class="section-body">{{item.analysisData.lineup_prediction}}</text>
-              </view>
-              <view class="analysis-section">
-                <text class="section-title">伤病情况</text>
-                <text class="section-body">{{item.analysisData.injury_concerns}}</text>
-              </view>
-              <view class="analysis-section">
-                <text class="section-title">胜率参考</text>
-                <text class="section-body">{{item.analysisData.odds_reference}}</text>
-              </view>
-            </view>
-            <view class="analysis-toggle" bindtap="toggleAnalysisDetail" data-id="{{item.id}}">
-              <text>{{item.showAllAnalysis ? '收起 ∧' : '展开更多分析 ∨'}}</text>
-            </view>
-            <view class="score-prediction-box">
-              <text class="prediction-label">比分预测</text>
-              <text class="prediction-text">{{item.analysisData.score_prediction}}</text>
-            </view>
-          </block>
-          <text wx:if="{{item.analysisModel}}" class="model-tag">分析模型: {{item.analysisModel}}</text>
         </view>
-
-        <view wx:elif="{{item.analysisLoading}}" class="analysis-loading">
-          <view class="loading-spinner"></view>
-          <text class="loading-text">AI 深入分析中...</text>
+        <view class="team-stats-row">
+          <view class="team-stat-card">
+            <text class="team-stat-num">{{teamDetail.fifaRank}}</text>
+            <text class="team-stat-label">FIFA 排名</text>
+          </view>
+          <view class="team-stat-card">
+            <text class="team-stat-num">{{teamDetail.appearances}}</text>
+            <text class="team-stat-label">参赛次数</text>
+          </view>
+          <view class="team-stat-card">
+            <text class="team-stat-val">{{teamDetail.best}}</text>
+            <text class="team-stat-label">历史最佳</text>
+          </view>
         </view>
-
-        <button wx:else class="btn-primary analyze-btn" data-idx="{{index}}" data-id="{{item.id}}" bindtap="analyzeMatch">
-          智能分析
-        </button>
+        <view class="team-info-row">
+          <view class="team-info-item">
+            <text class="team-info-label">主教练</text>
+            <text class="team-info-val">{{teamDetail.coach}}</text>
+          </view>
+          <view class="team-info-item">
+            <text class="team-info-label">核心球员</text>
+            <text class="team-info-val">{{teamDetail.keyPlayer}}</text>
+          </view>
+        </view>
+        <view wx:if="{{teamDetail.squadConfirmed}}" class="team-squad">
+          <text class="team-squad-title">26人大名单（已确认）</text>
+          <view class="squad-list">
+            <view wx:for="{{teamDetail.squad}}" wx:key="no" class="squad-row">
+              <text class="squad-no">{{item.no}}</text>
+              <text class="squad-pos">{{item.pos}}</text>
+              <text class="squad-name">{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+        <view wx:else class="team-squad">
+          <text class="team-squad-title">大名单待公布</text>
+          <text class="squad-pending">6月2日前提交最终名单</text>
+        </view>
+        <view class="team-sheet-close" bindtap="closeTeamDetail">
+          <text>关闭</text>
+        </view>
       </view>
     </view>
   </view>
