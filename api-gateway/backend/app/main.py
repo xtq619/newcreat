@@ -33,6 +33,7 @@ from app.services.rate_limiter import rate_limiter
 _digest_scheduler = None
 _news_scheduler = None
 _match_scheduler = None
+_squad_scheduler = None
 
 
 async def _fetch_military_news():
@@ -237,6 +238,40 @@ def _setup_match_updater():
     return scheduler
 
 
+def _setup_squad_updater():
+    """Start APScheduler for World Cup squad data auto-updates. Runs every 12 hours."""
+    import logging
+    import sys
+
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from apscheduler.triggers.interval import IntervalTrigger
+
+    logger = logging.getLogger(__name__)
+
+    async def update_squads():
+        from app.services.match_updater import run_squad_updates
+        try:
+            summary = await run_squad_updates()
+            if summary.get("updated", 0) > 0:
+                logger.info("Squad updater: %s", summary)
+        except Exception:
+            logger.exception("Squad update job failed")
+
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(
+        update_squads,
+        IntervalTrigger(hours=12),
+        id="squad_updater",
+        name="World Cup Squad Updater",
+        replace_existing=True,
+    )
+    scheduler.start()
+    msg = "Squad updater scheduler started (checking every 12 hours)"
+    logger.info(msg)
+    print(msg, flush=True)
+    return scheduler
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _news_scheduler
@@ -272,6 +307,7 @@ async def lifespan(app: FastAPI):
     scheduler = _setup_digest_scheduler()
     _news_scheduler = _setup_news_scheduler()
     _match_scheduler = _setup_match_updater()
+    _squad_scheduler = _setup_squad_updater()
 
     # Read actual settings from DB and reschedule if different from defaults
     try:
@@ -294,6 +330,8 @@ async def lifespan(app: FastAPI):
         _news_scheduler.shutdown(wait=False)
     if _match_scheduler:
         _match_scheduler.shutdown(wait=False)
+    if _squad_scheduler:
+        _squad_scheduler.shutdown(wait=False)
     if rate_limiter.redis:
         await rate_limiter.redis.close()
     await proxy_service.close()
