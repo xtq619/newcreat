@@ -19,7 +19,7 @@ from pathlib import Path
 # Add parent to path so we can import app modules
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.core.database import async_session_factory
+from app.core.database import async_session
 from app.models.worldcup import Match, Team
 
 
@@ -46,7 +46,7 @@ async def seed_matches(matches_data: list[dict], knockout_data: list[dict], grou
     # Build group name → team list map from groups data
     # Actually the matches_data already has group matches generated.
     # We'll seed directly from matches_data (group) + knockout_data.
-    async with async_session_factory() as db:
+    async with async_session() as db:
         count = 0
         for m in matches_data + knockout_data:
             match = Match(
@@ -81,7 +81,7 @@ async def seed_teams(teams_data: dict, groups_data: dict) -> int:
         for t in team_list:
             group_map[t["code"]] = letter
 
-    async with async_session_factory() as db:
+    async with async_session() as db:
         count = 0
         for code, data in teams_data.items():
             team = Team(

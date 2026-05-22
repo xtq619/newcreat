@@ -29,14 +29,15 @@ def _team_to_out(team) -> TeamOut:
         code=team.code,
         name=team.name,
         flag=team.flag,
-        group_name=team.group_name,
-        fifa_rank=team.fifa_rank,
+        group=team.group_name,
+        fifaRank=team.fifa_rank,
         appearances=team.appearances,
-        best_result=team.best_result,
+        best=team.best_result,
         coach=team.coach,
-        key_player=team.key_player,
-        squad_confirmed=team.squad_confirmed,
-        squad_data=team.squad_data or [],
+        keyPlayer=team.key_player,
+        squadConfirmed=team.squad_confirmed if team.squad_confirmed is not None else False,
+        squad=team.squad_data or [],
+        updatedAt=team.updated_at,
     )
 
 

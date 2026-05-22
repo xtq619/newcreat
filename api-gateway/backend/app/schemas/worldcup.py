@@ -89,14 +89,15 @@ class TeamOut(BaseModel):
     code: str
     name: str
     flag: str
-    group: str = Field(alias="group_name")
-    fifaRank: int | None = Field(alias="fifa_rank", default=None)
+    group: str
+    fifaRank: int | None = None
     appearances: int
-    best: str = Field(alias="best_result")
+    best: str
     coach: str
-    keyPlayer: str = Field(alias="key_player")
-    squadConfirmed: bool = Field(alias="squad_confirmed")
-    squad: list[dict[str, Any]] = Field(alias="squad_data", default_factory=list)
+    keyPlayer: str
+    squadConfirmed: bool
+    squad: list[dict[str, Any]] = []
+    updatedAt: datetime | None = None
 
 
 class TeamUpdate(BaseModel):
