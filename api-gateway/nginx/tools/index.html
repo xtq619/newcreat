@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小工具合集</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f7f3e9;
+  }
+  .container {
+    background: white;
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    text-align: center;
+    max-width: 520px;
+    width: 90%;
+  }
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+    background: #f0f0f0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 10px 0;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #718096;
+    transition: all 0.15s;
+  }
+  .tab-btn.active { background: #2d3748; color: white; }
+  .tab-btn:hover:not(.active) { color: #2d3748; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* 翻字典 */
+  .book-icon { font-size: 48px; margin: 8px 0 4px; }
+  .question-letter {
+    font-size: 90px;
+    font-weight: 700;
+    color: #2d3748;
+    font-family: "Georgia", serif;
+    line-height: 1.1;
+  }
+  .question-hint { color: #a0aec0; font-size: 14px; margin-bottom: 20px; }
+  .zones {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 8px 0 16px;
+  }
+  .zone-btn {
+    padding: 18px 10px;
+    font-size: 17px;
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 600;
+  }
+  .zone-btn:hover { border-color: #4299e1; transform: translateY(-1px); }
+  .zone-btn:active { transform: scale(0.97); }
+  .zone-btn.correct { background: #c6f6d5; border-color: #48bb78; color: #22543d; }
+  .zone-btn.wrong { background: #fed7d7; border-color: #f56565; color: #9b2c2c; }
+  .zone-btn:disabled { cursor: default; opacity: 0.75; }
+  .zone-btn:disabled:hover { border-color: #e2e8f0; transform: none; }
+  .zone-btn.correct:disabled:hover { border-color: #48bb78; }
+  .zone-btn.wrong:disabled:hover { border-color: #f56565; }
+
+  .feedback {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin: 4px 0 12px;
+  }
+  .stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    font-size: 14px;
+    color: #718096;
+    margin-bottom: 16px;
+  }
+  .stats span { font-weight: 600; color: #2d3748; }
+
+  .alphabet-bar {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+    margin: 16px 0 0;
+    padding: 12px 0 0;
+    border-top: 1px solid #e2e8f0;
+  }
+  .alphabet-bar span {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  .alphabet-bar span.zone-a { background: #fefcbf; color: #744210; }
+  .alphabet-bar span.zone-b { background: #bee3f8; color: #2a4365; }
+  .alphabet-bar span.zone-c { background: #c6f6d5; color: #22543d; }
+  .alphabet-bar span.zone-d { background: #fed7d7; color: #9b2c2c; }
+  .alphabet-bar span.target { border: 2px solid #2d3748; font-weight: 700; }
+
+  /* 减法 */
+  .math-icon { font-size: 48px; margin: 8px 0 4px; }
+  .question-math {
+    font-size: 72px;
+    font-weight: 700;
+    color: #2d3748;
+    font-family: "Georgia", serif;
+    line-height: 1.2;
+    margin: 8px 0;
+  }
+  .quick-answers {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .quick-btn {
+    padding: 12px 0;
+    font-size: 22px;
+    font-weight: 600;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.1s;
+    color: #2d3748;
+  }
+  .quick-btn:hover { border-color: #4299e1; background: #ebf8ff; }
+  .quick-btn:active { transform: scale(0.95); }
+  .quick-btn:disabled { cursor: default; opacity: 0.5; }
+  .quick-btn:disabled:hover { border-color: #e2e8f0; background: white; transform: none; }
+  .quick-btn.correct { background: #c6f6d5; border-color: #48bb78; color: #22543d; }
+  .quick-btn.wrong { background: #fed7d7; border-color: #f56565; color: #9b2c2c; }
+
+  .math-input-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 8px 0;
+  }
+  .math-input {
+    width: 100px;
+    height: 60px;
+    font-size: 40px;
+    font-weight: 700;
+    text-align: center;
+    border: 3px solid #e2e8f0;
+    border-radius: 12px;
+    outline: none;
+    color: #2d3748;
+    transition: border-color 0.15s;
+  }
+  .math-input:focus { border-color: #4299e1; }
+  .math-input.correct { border-color: #48bb78; background: #c6f6d5; }
+  .math-input.wrong { border-color: #f56565; background: #fed7d7; }
+  .math-submit {
+    padding: 12px 28px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    background: #4299e1;
+    color: white;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .math-submit:hover { background: #3182ce; }
+
+  h2 { font-size: 22px; color: #1a202c; margin-bottom: 4px; }
+  .subtitle { color: #718096; font-size: 14px; margin-bottom: 12px; }
+  .math-mode-hint { color: #a0aec0; font-size: 13px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="dictionary">📖 翻字典</button>
+    <button class="tab-btn" data-tab="math">➖ 借位减法</button>
+  </div>
+
+  <div class="page active" id="page-dictionary">
+    <div class="book-icon">📖</div>
+    <h2>翻字典定位训练</h2>
+    <p class="subtitle">看到字母 → 凭感觉选区域</p>
+    <div class="question-letter" id="dictQuestion">?</div>
+    <p class="question-hint">这个字母在字典的哪个位置？</p>
+    <div class="zones" id="dictZones"></div>
+    <div class="feedback" id="dictFeedback"><span style="color:#a0aec0;">选一个区域</span></div>
+    <div class="stats">正确率 <span id="dictAccuracy">—</span> &nbsp;·&nbsp; 已练 <span id="dictCount">0</span> 题</div>
+    <div class="feedback" id="anchorHint" style="color:#718096;font-size:14px;min-height:36px;"></div>
+    <div class="alphabet-bar" id="dictBar"></div>
+  </div>
+
+  <div class="page" id="page-math">
+    <div class="math-icon">🧮</div>
+    <h2>20以内借位减法</h2>
+    <p class="subtitle">个位不够减，需要借位的</p>
+    <div class="question-math" id="mathQuestion">?</div>
+    <p class="math-mode-hint">点数字快速作答，或直接输入</p>
+    <div class="quick-answers" id="quickAnswers"></div>
+    <div class="math-input-area">
+      <span class="eq-sign">=</span>
+      <input class="math-input" id="mathInput" type="number" autofocus>
+      <button class="math-submit" id="mathSubmit">确定</button>
+    </div>
+    <div class="feedback" id="mathFeedback"><span style="color:#a0aec0;">输入答案后回车或点确定</span></div>
+    <div class="stats">正确率 <span id="mathAccuracy">—</span> &nbsp;·&nbsp; 已练 <span id="mathCount">0</span> 题</div>
+  </div>
+</div>
+
+<script>
+// Tab 切换
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("page-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "math") setTimeout(() => document.getElementById("mathInput").focus(), 100);
+  });
+});
+
+// ============== 翻字典 ==============
+(function() {
+  const ZONES = [
+    { color: "zone-a", check: l => l <= "G" },
+    { color: "zone-b", check: l => l >= "H" && l <= "M" },
+    { color: "zone-c", check: l => l >= "N" && l <= "R" },
+    { color: "zone-d", check: l => l >= "S" },
+  ];
+  const LABELS = ["开头", "前中段", "后中段", "结尾"];
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  let currentLetter = "", currentZoneIdx = -1;
+  let total = 0, correct = 0, answered = false;
+
+  const $q = document.getElementById("dictQuestion");
+  const $fb = document.getElementById("dictFeedback");
+  const $acc = document.getElementById("dictAccuracy");
+  const $cnt = document.getElementById("dictCount");
+  const $zones = document.getElementById("dictZones");
+
+  LETTERS.forEach(ch => {
+    const el = document.createElement("span");
+    el.textContent = ch;
+    document.getElementById("dictBar").appendChild(el);
+  });
+
+  function getZoneIndex(ch) {
+    for (let i = 0; i < ZONES.length; i++) if (ZONES[i].check(ch)) return i;
+    return -1;
+  }
+
+  LABELS.forEach((label, i) => {
+    const btn = document.createElement("button");
+    btn.className = "zone-btn";
+    btn.textContent = label;
+    btn.dataset.zoneIdx = i;
+    btn.addEventListener("click", () => handleAnswer(i));
+    $zones.appendChild(btn);
+  });
+
+  function newQuestion() {
+        // 加权：开头(A-G)占16%，前中段(H-M)占28%，后中段(N-R)占28%，结尾(S-Z)占28%
+    const r = Math.random();
+    let idx;
+    if (r < 0.16) {
+      idx = Math.floor(Math.random() * 7);      // A-G
+    } else if (r < 0.44) {
+      idx = 7 + Math.floor(Math.random() * 7);   // H-M
+    } else if (r < 0.72) {
+      idx = 14 + Math.floor(Math.random() * 5);  // N-R
+    } else {
+      idx = 19 + Math.floor(Math.random() * 7);  // S-Z
+    }
+    currentLetter = LETTERS[idx];
+    currentZoneIdx = getZoneIndex(currentLetter);
+    $q.textContent = currentLetter;
+    $fb.innerHTML = '<span style="color:#a0aec0;">选一个区域</span>';
+    answered = false;
+    document.querySelectorAll("#dictZones .zone-btn").forEach(b => { b.className = "zone-btn"; b.disabled = false; });
+    document.querySelectorAll("#dictBar span").forEach(el => el.className = "");
+  }
+
+  function handleAnswer(zoneIdx) {
+    if (answered) return;
+    answered = true; total++;
+    const ok = zoneIdx === currentZoneIdx;
+    if (ok) correct++;
+    $acc.textContent = total > 0 ? Math.round(correct/total*100)+"%" : "—";
+    $cnt.textContent = total;
+    document.querySelectorAll("#dictZones .zone-btn").forEach(b => {
+      b.disabled = true;
+      const idx = parseInt(b.dataset.zoneIdx);
+      if (idx === currentZoneIdx) b.classList.add("correct");
+      else if (idx === zoneIdx && !ok) b.classList.add("wrong");
+    });
+    $fb.innerHTML = ok
+      ? `✅ 没错！<strong>${currentLetter}</strong> 在 <strong>${LABELS[currentZoneIdx]}</strong>`
+      : `❌ <strong>${currentLetter}</strong> 在 <strong>${LABELS[currentZoneIdx]}</strong>，再感受一下位置`;
+    document.querySelectorAll("#dictBar span").forEach(el => {
+      const zi = getZoneIndex(el.textContent);
+      el.className = zi >= 0 ? ZONES[zi].color : "";
+      if (el.textContent === currentLetter) el.classList.add("target");
+    });
+    setTimeout(newQuestion, 600);
+  }
+  newQuestion();
+})();
+
+// ============== 借位减法 ==============
+(function() {
+  let currentA = 0, currentB = 0, currentAnswer = 0;
+  let total = 0, correct = 0, answered = false;
+
+  const $q = document.getElementById("mathQuestion");
+  const $fb = document.getElementById("mathFeedback");
+  const $acc = document.getElementById("mathAccuracy");
+  const $cnt = document.getElementById("mathCount");
+  const $input = document.getElementById("mathInput");
+  const $submit = document.getElementById("mathSubmit");
+  const $quick = document.getElementById("quickAnswers");
+
+  for (let i = 0; i <= 9; i++) {
+    const btn = document.createElement("button");
+    btn.className = "quick-btn";
+    btn.textContent = i;
+    btn.dataset.val = i;
+    btn.addEventListener("click", () => handleQuick(i));
+    $quick.appendChild(btn);
+  }
+
+  function handleQuick(val) {
+    if (answered) return;
+    $input.value = val;
+    checkAnswer(val);
+  }
+
+  function newQuestion() {
+    // 只生成借位减法：12-4=8, 12-5=7 ... 个位不够减才叫借位
+    // 被减数：11~18（10不行，19也行）
+    // 保证：被减数个位 < 减数的个位，且减数 >=2
+    // 被减数个位范围 1~8（个位为0时不可能借位，个位9时减数只能10以上）
+    const aOnes = Math.floor(Math.random() * 8) + 1;  // 1~8
+    // 减数范围: (aOnes+1) ~ 9
+    const low = aOnes + 1;
+    if (low > 9) { newQuestion(); return; }
+    const bOnes = Math.floor(Math.random() * (9 - low + 1)) + low; // (aOnes+1)~9
+
+    currentA = 10 + aOnes;
+    currentB = bOnes;
+    currentAnswer = currentA - currentB;
+
+    $q.textContent = currentA + " - " + currentB + " = ?";
+    $fb.innerHTML = '<span style="color:#a0aec0;">输入答案后回车或点确定</span>';
+    $input.value = "";
+    $input.className = "math-input";
+    $input.disabled = false;
+    $input.focus();
+    answered = false;
+
+    document.querySelectorAll("#quickAnswers .quick-btn").forEach(b => {
+      b.className = "quick-btn";
+      b.disabled = false;
+    });
+  }
+
+  function checkAnswer(val) {
+    if (answered) return;
+    answered = true; total++;
+    const ok = val === currentAnswer;
+    if (ok) correct++;
+    $acc.textContent = total > 0 ? Math.round(correct/total*100)+"%" : "—";
+    $cnt.textContent = total;
+
+    $input.className = "math-input" + (ok ? " correct" : " wrong");
+    $input.disabled = true;
+
+    document.querySelectorAll("#quickAnswers .quick-btn").forEach(b => {
+      b.disabled = true;
+      const v = parseInt(b.dataset.val);
+      if (v === currentAnswer) b.classList.add("correct");
+      else if (v === val && !ok) b.classList.add("wrong");
+    });
+
+    $fb.innerHTML = ok
+      ? "✅ 正确！" + currentA + " - " + currentB + " = " + currentAnswer
+      : "❌ 不对哦 " + currentA + " - " + currentB + " = " + currentAnswer + "，你填了 " + val;
+
+    setTimeout(newQuestion, 800);
+  }
+
+  $input.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const v = parseInt($input.value);
+      if (!isNaN(v) && !answered) checkAnswer(v);
+    }
+  });
+
+  $submit.addEventListener("click", () => {
+    const v = parseInt($input.value);
+    if (!isNaN(v) && !answered) checkAnswer(v);
+  });
+
+  newQuestion();
+})();
+</script>
+</body>
+</html>
+
+
+
+

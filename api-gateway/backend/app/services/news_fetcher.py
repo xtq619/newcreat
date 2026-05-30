@@ -497,8 +497,11 @@ async def _auto_fetch_news_impl(db: AsyncSession, total_count: int) -> dict:
 
     stats = {"fetched": 0, "created": 0, "skipped": 0, "errors": 0}
 
-    # Even distribution: each source gets ceil(total_count / num_sources)
-    per_source = math.ceil(total_count / len(RSS_SOURCES))
+    # Proportional distribution: split total_count across local + proxy sources.
+    # The proxy serves 5 additional RSS sources, so we treat total_sources = 9 + 5 = 14.
+    PROXY_SOURCE_COUNT = 5
+    total_sources = len(RSS_SOURCES) + PROXY_SOURCE_COUNT
+    per_source = max(1, math.ceil(total_count / total_sources))
 
     # Step 1: Fetch local RSS feeds + Silicon Valley proxy in parallel
     rss_tasks = [fetch_rss_entries(source, max_items=per_source) for source in RSS_SOURCES]

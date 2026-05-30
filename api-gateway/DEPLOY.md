@@ -217,6 +217,7 @@ docker system prune -a --volumes
 | 服务 | 地址 |
 |------|------|
 | 前端 | https://xtq619.xyz |
+| 小工具 | https://xtq619.xyz/tools/ |
 | API | https://api.xtq619.xyz |
 | API 文档 | https://api.xtq619.xyz/docs |
 | 健康检查 | https://api.xtq619.xyz/health |
@@ -235,7 +236,8 @@ docker system prune -a --volumes
 | 文件 | 硬编码内容 | 说明 |
 |------|-----------|------|
 | `miniprogram/app.js` | `baseUrl: 'https://api.xtq619.xyz/api/v1'` | 小程序 API 地址 |
-| `nginx/nginx.conf` | `server_name api.xtq619.xyz` / `server_name xtq619.xyz` | Nginx 路由 |
+| `nginx/nginx.conf` | `server_name api.xtq619.xyz` / `server_name xtq619.xyz` | Nginx 路由（含 `/tools` 静态页） |
+| `nginx/tools/index.html` | 翻字典 & 借位减法小工具 | 纯静态页，Nginx 直接 serve |
 | `backend/app/services/news_fetcher.py` | `SILICON_VALLEY_PROXY = "https://ai.xtq619.xyz` | 海外新闻代理地址 |
 | `docker-compose.prod.yml` | `DOMAIN` 环境变量（用于 CORS） | .env 文件控制 |
 

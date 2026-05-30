@@ -6,5 +6,13 @@ Thumbs.db
 .env.local
 __pycache__/
 *.pyc
+*.py[cod]
+*.egg-info/
+*.egg
+.venv/
+venv/
+dist/
+.pytest_cache/
 .idea/
 .vscode/
+.claude/

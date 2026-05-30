@@ -99,61 +99,77 @@ def _match_start_bj(m: Match) -> datetime:
 
 async def run_squad_updates() -> dict:
     """
-    Update team squad data from an external API. Runs every 12 hours.
-    Set WORLDCUP_SQUADS_API_URL in .env to enable.
+    Update team squad data from Wikipedia via Silicon Valley proxy.
+    Runs every 12 hours.
 
-    Expected API response format:
-      [{"code": "KOR", "squad": [{"pos": "门将", "name": "...", "no": 1}, ...], "squadConfirmed": true}, ...]
+    Pipeline:
+    1. Call https://ai.xtq619.xyz/fetch_squads (Tencent server → Wikipedia)
+    2. Parse JSON response (already has position translated to Chinese)
+    3. Match teams by FIFA code
+    4. Preserve Chinese player names from existing DB data (position-based matching)
+    5. Translate new player names via lookup table
+    6. Directly overwrite squad_data, set squad_confirmed=True
     """
     from app.core.config import settings
     from app.models.worldcup import Team
 
     api_url = getattr(settings, "WORLDCUP_SQUADS_API_URL", None)
     if not api_url:
-        return {"enabled": False, "reason": "WORLDCUP_SQUADS_API_URL not configured"}
+        api_url = "https://ai.xtq619.xyz/fetch_squads"
 
-    summary = {"updated": 0, "unchanged": 0, "teams_checked": 0}
+    summary = {"updated": 0, "unchanged": 0, "teams_fetched": 0, "teams_matched": 0}
 
     try:
-        import aiohttp
+        import httpx
 
+        # 1. Fetch squad data from Tencent proxy
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0), verify=False) as client:
+            resp = await client.get(
+                api_url,
+                headers={
+                    "User-Agent": "api-gateway/1.0",
+                    "Accept": "application/json",
+                },
+            )
+            if resp.status_code != 200:
+                logger.warning("Squad API returned HTTP %d", resp.status_code)
+                return {"enabled": True, "error": f"HTTP {resp.status_code}"}
+            data = resp.json()
+
+        if data.get("error"):
+            logger.warning("Squad API error: %s", data["error"])
+            return {"enabled": True, "error": data["error"]}
+
+        teams_data = data.get("teams", [])
+        summary["teams_fetched"] = len(teams_data)
+        logger.info("Fetched %d teams from squad API", len(teams_data))
+
+        # 2. Load DB teams
         async with async_session() as db:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(api_url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                    if resp.status != 200:
-                        logger.warning("Squad API returned HTTP %d", resp.status)
-                        return {"enabled": True, "error": f"HTTP {resp.status}"}
-                    data = await resp.json()
+            result = await db.execute(select(Team))
+            db_teams = {t.code: t for t in result.scalars().all()}
 
-            for item in data or []:
-                code = item.get("code")
-                if not code:
+            for wiki_team in teams_data:
+                code = wiki_team.get("code", "")
+                if not code or code not in db_teams:
                     continue
-                summary["teams_checked"] += 1
+                summary["teams_matched"] += 1
+                team = db_teams[code]
 
-                result = await db.execute(select(Team).where(Team.code == code))
-                team = result.scalar_one_or_none()
-                if not team:
-                    continue
+                # 3. Build new squad_data with translated names
+                old_players = team.squad_data or []
+                new_players = _build_squad_with_translations(
+                    wiki_team.get("players", []),
+                    old_players,
+                )
 
-                new_squad = item.get("squad")
-                new_confirmed = item.get("squadConfirmed")
-                changed = False
-
-                if new_squad is not None and new_squad != team.squad_data:
-                    team.squad_data = new_squad
-                    changed = True
-                if new_confirmed is not None and new_confirmed != team.squad_confirmed:
-                    team.squad_confirmed = new_confirmed
-                    changed = True
-
-                if changed:
-                    team.updated_at = datetime.now(timezone.utc)
-                    summary["updated"] += 1
-                    logger.info("Squad updated for %s (%d players, confirmed=%s)",
-                                code, len(new_squad) if new_squad else 0, new_confirmed)
-                else:
-                    summary["unchanged"] += 1
+                # 4. Overwrite
+                team.squad_data = new_players
+                team.squad_confirmed = True
+                team.updated_at = datetime.now(timezone.utc)
+                summary["updated"] += 1
+                logger.info("Squad updated for %s (%d players, was %d)",
+                            code, len(new_players), len(old_players))
 
             if summary["updated"] > 0:
                 await db.commit()
@@ -165,6 +181,681 @@ async def run_squad_updates() -> dict:
     if summary["updated"] > 0:
         logger.info("Squad updater summary: %s", summary)
     return summary
+
+
+def _build_squad_with_translations(
+    new_players: list[dict],
+    old_players: list[dict],
+) -> list[dict]:
+    """
+    Build final squad list by merging Wikipedia data with existing Chinese names.
+
+    Strategy (name-based matching):
+    1. Translate each Wikipedia player's English name to Chinese via PLAYER_NAME_MAP
+    2. Look up the translated Chinese name in the old player pool
+    3. If found → use old player's Chinese name + number, remove from pool
+    4. If not found → use translated name (or English fallback)
+    5. This handles position reclassifications between sources (e.g. Son as MF vs FW)
+    """
+    result = []
+    # Build lookup: Chinese name → old player data (for matching)
+    old_pool: dict[str, dict] = {}
+    for p in old_players:
+        name = p.get("name", "").strip()
+        if name:
+            old_pool[name] = p
+
+    for wiki_p in new_players:
+        pos = wiki_p.get("pos", "")
+        name_en = wiki_p.get("name_en", "")
+        no = wiki_p.get("no", 0)
+
+        # Translate the Wikipedia player's name to Chinese
+        cn_name = _translate_name(name_en)
+
+        # Try to find a matching old player by Chinese name
+        if cn_name and cn_name in old_pool:
+            old_p = old_pool.pop(cn_name)
+            old_no = old_p.get("no", 0)
+            # Use old Chinese name; keep old number if Wikipedia has none
+            if no == 0 and old_no != 0:
+                no = old_no
+            name = old_p.get("name", cn_name)
+        else:
+            name = cn_name if cn_name else name_en
+
+        result.append({
+            "pos": pos,
+            "name": name,
+            "no": no,
+        })
+
+    return result
+
+
+def _is_chinese_name(s: str) -> bool:
+    """Check if a string contains Chinese characters."""
+    if not s:
+        return False
+    for ch in s:
+        if '一' <= ch <= '鿿' or '㐀' <= ch <= '䶿':
+            return True
+    return False
+
+
+def _translate_name(name_en: str) -> str:
+    """Translate an English player name to Chinese using the lookup table."""
+    import re
+    import unicodedata
+
+    if not name_en:
+        return ""
+
+    def _normalize(s: str) -> str:
+        """Strip diacritics and lowercase for fuzzy matching."""
+        n = unicodedata.normalize("NFKD", s)
+        n = "".join(c for c in n if unicodedata.category(c) != "Mn")
+        return n.lower()
+
+    # Strip parenthetical suffixes: "(captain)", "(vice-captain)", etc.
+    clean = re.sub(r"\s*\([^)]*\)", "", name_en).strip()
+    # Exact match with original
+    if name_en in PLAYER_NAME_MAP:
+        return PLAYER_NAME_MAP[name_en]
+    if clean in PLAYER_NAME_MAP:
+        return PLAYER_NAME_MAP[clean]
+    # Case-insensitive match
+    name_lower = name_en.lower()
+    clean_lower = clean.lower()
+    for en, zh in PLAYER_NAME_MAP.items():
+        key_lower = en.lower()
+        if key_lower == name_lower or key_lower == clean_lower:
+            return zh
+    # Diacritic-insensitive match: "Kō Itakura" ↔ "Ko Itakura"
+    name_norm = _normalize(name_en)
+    clean_norm = _normalize(clean)
+    for en, zh in PLAYER_NAME_MAP.items():
+        if _normalize(en) in (name_norm, clean_norm):
+            return zh
+    # Return English name as-is (no translation available)
+    return name_en
+
+
+# ===========================================================================
+# English → Chinese player name translation table
+# Loaded from data/player_names.json at module load time
+# ===========================================================================
+
+import json
+from pathlib import Path
+
+_json_path = Path(__file__).parent.parent / "data" / "player_names.json"
+with open(_json_path, "r", encoding="utf-8") as _f:
+    PLAYER_NAME_MAP: dict[str, str] = json.load(_f)
+
+
+# ---------------------------------------------------------------------------
+# HTML parsing helpers
+# ---------------------------------------------------------------------------
+
+def _el_text(el) -> str:
+    """Safely get text content from any lxml element (HtmlElement or _Element)."""
+    return " ".join(el.itertext())
+
+
+def _merge_squad_numbers(new_squad: list[dict], old_squad: list[dict]) -> list[dict]:
+    """Preserve jersey numbers from old squad when new data has no numbers."""
+    if not old_squad:
+        return new_squad
+    # Build lookup: player name → number from old data
+    old_nums: dict[str, int] = {}
+    for p in old_squad:
+        name = p.get("name", "")
+        no = p.get("no", 0)
+        if name and no:
+            old_nums[name] = no
+    if not old_nums:
+        return new_squad
+    merged = []
+    for p in new_squad:
+        name = p.get("name", "")
+        if p.get("no", 0) == 0 and name in old_nums:
+            merged.append({"pos": p["pos"], "name": name, "no": old_nums[name]})
+        else:
+            merged.append(p)
+    return merged
+
+
+# Mapping from English position names found on web pages to Chinese used in DB
+_POSITION_MAP: dict[str, str] = {
+    "goalkeeper": "门将",
+    "gk": "门将",
+    "defender": "后卫",
+    "df": "后卫",
+    "centre-back": "后卫",
+    "center-back": "后卫",
+    "center back": "后卫",
+    "full-back": "后卫",
+    "full back": "后卫",
+    "left-back": "后卫",
+    "left back": "后卫",
+    "right-back": "后卫",
+    "right back": "后卫",
+    "wing-back": "后卫",
+    "wing back": "后卫",
+    "sweeper": "后卫",
+    "midfielder": "中场",
+    "mf": "中场",
+    "central midfielder": "中场",
+    "defensive midfielder": "中场",
+    "attacking midfielder": "中场",
+    "winger": "中场",
+    "forward": "前锋",
+    "fw": "前锋",
+    "striker": "前锋",
+    "centre-forward": "前锋",
+    "center-forward": "前锋",
+    "center forward": "前锋",
+    "winger-forward": "前锋",
+}
+
+
+def _translate_position(pos: str) -> str:
+    return _POSITION_MAP.get(pos.strip().lower(), pos.strip())
+
+
+def _normalize(s: str) -> str:
+    """Normalize a team name for fuzzy matching, including accent folding."""
+    import re, unicodedata
+
+    s = s.strip().lower()
+    # Fold accents: é→e, ç→c, ü→u, etc.
+    s = "".join(
+        c for c in unicodedata.normalize("NFKD", s)
+        if unicodedata.category(c) != "Mn"
+    )
+    s = re.sub(r"\s*\([^)]*\)", "", s)  # remove parentheticals
+    s = re.sub(r"[^a-z]", "", s)
+    return s
+
+
+def _find_team(raw_name: str, by_code: dict, by_name: dict):
+    """Find a DB Team by scraped team name. Returns Team or None."""
+    # Direct code match (e.g. "KOR", "JPN")
+    if raw_name.upper() in by_code:
+        return by_code[raw_name.upper()]
+
+    norm = _normalize(raw_name)
+    # Exact normalized name match
+    if norm in by_name:
+        return by_name[norm]
+
+    # Substring match: scraped name contains DB name or vice versa
+    for db_norm, team in by_name.items():
+        if len(db_norm) >= 3 and (db_norm in norm or norm in db_norm):
+            return team
+
+    # English team name → DB code mapping (SI.com uses English names, DB stores Chinese)
+    aliases: dict[str, str] = {
+        # Group A
+        "mexico": "MEX",
+        "southafrica": "RSA",
+        "southkorea": "KOR",
+        "korearepublic": "KOR",
+        "czechia": "CZE",
+        "czechrepublic": "CZE",
+        # Group B
+        "canada": "CAN",
+        "bosniaherzegovina": "BIH",
+        "bosnia": "BIH",
+        "qatar": "QAT",
+        "switzerland": "SUI",
+        # Group C
+        "brazil": "BRA",
+        "morocco": "MAR",
+        "haiti": "HAI",
+        "scotland": "SCO",
+        # Group D
+        "usa": "USA",
+        "unitedstates": "USA",
+        "paraguay": "PAR",
+        "australia": "AUS",
+        "turkey": "TUR",
+        "trkiye": "TUR",
+        # Group E
+        "germany": "GER",
+        "curacao": "CUW",
+        "curaçao": "CUW",
+        "ivorycoast": "CIV",
+        "cotedivoire": "CIV",
+        "ecuador": "ECU",
+        # Group F
+        "netherlands": "NED",
+        "japan": "JPN",
+        "sweden": "SWE",
+        "tunisia": "TUN",
+        # Group G
+        "belgium": "BEL",
+        "egypt": "EGY",
+        "iran": "IRN",
+        "newzealand": "NZL",
+        # Group H
+        "spain": "ESP",
+        "capeverde": "CPV",
+        "saudiarabia": "KSA",
+        "uruguay": "URU",
+        # Group I
+        "france": "FRA",
+        "senegal": "SEN",
+        "iraq": "IRQ",
+        "norway": "NOR",
+        # Group J
+        "argentina": "ARG",
+        "algeria": "ALG",
+        "austria": "AUT",
+        "jordan": "JOR",
+        # Group K
+        "portugal": "POR",
+        "drcongo": "COD",
+        "congodr": "COD",
+        "uzbekistan": "UZB",
+        "colombia": "COL",
+        # Group L
+        "england": "ENG",
+        "croatia": "CRO",
+        "ghana": "GHA",
+        "panama": "PAN",
+    }
+    alias_code = aliases.get(norm)
+    if alias_code and alias_code in by_code:
+        return by_code[alias_code]
+
+    return None
+
+
+def _log_page_structure(tree) -> None:
+    """Log key HTML elements to help tune selectors after first deploy."""
+    # Find heading hierarchy
+    headings: list[str] = []
+    for h in tree.iter("h1", "h2", "h3", "h4"):
+        if not isinstance(h.tag, str):
+            continue
+        text = " ".join((h.text or "").split())[:80]
+        if text:
+            headings.append(f"{h.tag}: {text}")
+
+    # Check for embedded JSON
+    has_json_ld = bool(tree.xpath('//script[@type="application/ld+json"]'))
+    has_next_data = bool(tree.xpath('//script[@id="__NEXT_DATA__"]'))
+    table_count = len(tree.xpath("//table"))
+
+    logger.info(
+        "Squad page: h1-h4=%d, tables=%d, jsonld=%s, nextdata=%s",
+        len(headings), table_count, has_json_ld, has_next_data,
+    )
+    for h in headings[:30]:
+        logger.debug("  %s", h)
+
+
+def _extract_squads(tree) -> dict[str, list[dict]]:
+    """
+    Extract team → squad mapping from parsed HTML.
+    Tries SI.com table format first, then falls back to generic strategies.
+    """
+    squads = _try_si_tables(tree)
+    if squads:
+        logger.info("Squad extraction: used SI.com table strategy, got %d teams", len(squads))
+        return squads
+
+    squads = _try_tables(tree)
+    if squads:
+        logger.info("Squad extraction: used generic table strategy, got %d teams", len(squads))
+        return squads
+
+    squads = _try_next_data(tree)
+    if squads:
+        logger.info("Squad extraction: used __NEXT_DATA__ strategy, got %d teams", len(squads))
+        return squads
+
+    squads = _try_semantic_sections(tree)
+    if squads:
+        logger.info("Squad extraction: used semantic sections strategy, got %d teams", len(squads))
+        return squads
+
+    squads = _try_jsonld(tree)
+    if squads:
+        logger.info("Squad extraction: used JSON-LD strategy, got %d teams", len(squads))
+        return squads
+
+    return {}
+
+
+def _try_jsonld(tree) -> dict[str, list[dict]]:
+    """Extract squad data from schema.org JSON-LD blocks."""
+    import json
+
+    squads: dict[str, list[dict]] = {}
+    for script in tree.xpath('//script[@type="application/ld+json"]'):
+        try:
+            data = json.loads(script.text or "")
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(data, dict):
+            data = [data]
+        for item in data if isinstance(data, list) else []:
+            if item.get("@type") in ("SportsTeam", "SportsEvent"):
+                # Flatten graph if present
+                pass  # JSON-LD varies too much; logged but not relied on
+    return squads
+
+
+def _try_next_data(tree) -> dict[str, list[dict]]:
+    """Extract from Next.js __NEXT_DATA__ JSON blob."""
+    import json
+
+    script = tree.xpath('//script[@id="__NEXT_DATA__"]')
+    if not script:
+        return {}
+    try:
+        data = json.loads(script[0].text or "")
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+    # Walk the Next.js props tree looking for team/player data
+    squads: dict[str, list[dict]] = {}
+    _walk_next_props(data, squads)
+    return squads
+
+
+def _walk_next_props(node, squads: dict, depth: int = 0) -> None:
+    """Recursively search Next.js props for squad-like structures."""
+    if depth > 8:
+        return
+    if isinstance(node, dict):
+        # Look for patterns like {"name": "Japan", "squad": [...], "players": [...]}
+        maybe_team = node.get("name") or node.get("team") or node.get("teamName")
+        players = node.get("squad") or node.get("players") or node.get("roster")
+        if isinstance(maybe_team, str) and isinstance(players, list) and len(players) > 0:
+            parsed = _parse_player_list(players)
+            if len(parsed) >= 11:  # minimum plausible squad size
+                squads[maybe_team] = parsed
+        for v in node.values():
+            _walk_next_props(v, squads, depth + 1)
+    elif isinstance(node, list):
+        for item in node:
+            _walk_next_props(item, squads, depth + 1)
+
+
+def _try_semantic_sections(tree) -> dict[str, list[dict]]:
+    """
+    Parse page by finding team-name headings and extracting player lists
+    from following content. This handles the most common news-article layout.
+    """
+    squads: dict[str, list[dict]] = {}
+
+    # Collect all h2/h3/h4 headings with their following siblings
+    headings = tree.xpath('//h2 | //h3 | //h4')
+    for i, heading in enumerate(headings):
+        heading_text = " ".join((heading.text or "").split())
+        if not heading_text or len(heading_text) > 60:
+            continue
+
+        # Determine if this heading names a team
+        # Strategy: scan for player-like data in the elements between this
+        # heading and the next heading of same or higher level.
+        content_elements = _following_elements(heading, headings[i + 1] if i + 1 < len(headings) else None)
+
+        players = _extract_players_from_elements(content_elements)
+        if len(players) >= 11:
+            squads[heading_text] = players
+
+    return squads
+
+
+def _following_elements(start_el, stop_el):
+    """Collect all elements between start_el and stop_el (exclusive)."""
+    elements = []
+    el = start_el.getnext()
+    while el is not None:
+        if el is stop_el:
+            break
+        elements.append(el)
+        el = el.getnext()
+        # Safety limit
+        if len(elements) > 200:
+            break
+    return elements
+
+
+def _extract_players_from_elements(elements: list) -> list[dict]:
+    """Try to extract player data from a list of HTML elements."""
+    players: list[dict] = []
+
+    for el in elements:
+        text = " ".join((_el_text(el) or "").split())
+        if not text:
+            continue
+
+        # Check for table rows
+        if el.tag == "tr":
+            cells = el.findall("td") or el.findall("th")
+            player = _parse_table_row(cells)
+            if player:
+                players.append(player)
+            continue
+
+        # Check for list items: "1. Zion Suzuki (Goalkeeper)" or "Goalkeeper: Zion Suzuki"
+        if el.tag in ("li", "p", "div"):
+            player = _parse_text_as_player(text)
+            if player:
+                players.append(player)
+
+    return players
+
+
+def _try_si_tables(tree) -> dict[str, list[dict]]:
+    """
+    Parse SI.com / similar format:
+      <h3>TeamName</h3>
+      ... (possibly nested in wrapper divs) ...
+      <table>
+        <thead><tr><th>Player</th><th>Position</th><th>Club</th><th>Caps</th></tr></thead>
+        <tbody><tr><td><p>Name</p></td><td><p>Goalkeeper</p></td>...</tr>...</tbody>
+      </table>
+    """
+    squads: dict[str, list[dict]] = {}
+
+    for table in tree.xpath("//table"):
+        # Identify squad tables by their header row
+        header_texts = _get_header_texts(table)
+        if "player" not in header_texts or "position" not in header_texts:
+            continue
+
+        name_col = header_texts.index("player")
+        pos_col = header_texts.index("position")
+        # Optional number column
+        no_col = header_texts.index("no") if "no" in header_texts else header_texts.index("number") if "number" in header_texts else -1
+
+        # Find nearest preceding h3 as team name
+        team_name = _find_preceding_h3(tree, table)
+        if not team_name:
+            continue
+
+        players: list[dict] = []
+        for row in table.xpath(".//tbody//tr"):
+            cells = row.xpath(".//td")
+            if len(cells) <= max(name_col, pos_col):
+                continue
+            name = " ".join(_el_text(cells[name_col]).split())
+            pos = " ".join(_el_text(cells[pos_col]).split())
+            no = 0
+            if no_col >= 0 and no_col < len(cells):
+                try:
+                    no = int(_el_text(cells[no_col]).strip())
+                except ValueError:
+                    no = 0
+            if name and pos:
+                players.append({"pos": _translate_position(pos), "name": name, "no": no})
+
+        if len(players) >= 11:
+            squads[team_name] = players
+
+    return squads
+
+
+def _get_header_texts(table) -> list[str]:
+    """Extract normalized header texts from a table's <thead> or first <tr>."""
+    headers: list[str] = []
+    # Try thead first
+    thead = table.find("thead")
+    if thead is not None:
+        for th in thead.xpath(".//th"):
+            headers.append(" ".join(_el_text(th).split()).lower())
+        if headers:
+            return headers
+    # Fall back to first row
+    first_row = table.find("tr")
+    if first_row is not None:
+        for cell in first_row.xpath(".//th | .//td"):
+            headers.append(" ".join(_el_text(cell).split()).lower())
+    return headers
+
+
+def _find_preceding_h3(tree, table) -> str | None:
+    """Find the nearest <h3> preceding this table that looks like a team name."""
+    import re
+
+    # lxml returns preceding:: nodes in document order (closest = last)
+    for h3 in reversed(table.xpath("preceding::h3")):
+        text = " ".join(_el_text(h3).split())
+        if text and len(text) < 50 and not re.search(r"[.。!?！？,，;；:：]{2,}", text):
+            return text
+    return None
+
+
+def _try_tables(tree) -> dict[str, list[dict]]:
+    """Extract from HTML tables. Each table may represent one team."""
+    squads: dict[str, list[dict]] = {}
+    tables = tree.xpath('//table')
+    for table in tables:
+        # Try to find a caption or preceding heading as team name
+        caption = table.find("caption")
+        team_name = None
+        if caption is not None:
+            team_name = " ".join((caption.text or "").split())
+        else:
+            # Look at preceding h2/h3
+            prev = table.getprevious()
+            while prev is not None:
+                if prev.tag in ("h2", "h3", "h4"):
+                    team_name = " ".join((prev.text or "").split())
+                    break
+                prev = prev.getprevious()
+
+        players: list[dict] = []
+        for row in table.findall(".//tr"):
+            cells = row.findall("td") or row.findall("th")
+            player = _parse_table_row(cells)
+            if player:
+                players.append(player)
+
+        if team_name and len(players) >= 11:
+            squads[team_name] = players
+
+    return squads
+
+
+def _parse_table_row(cells: list) -> dict | None:
+    """Parse a <tr> with cells like [No, Position, Name] or [Position, Name]."""
+    if len(cells) < 2:
+        return None
+    texts = [" ".join((_el_text(c) or "").split()) for c in cells]
+    # Remove empty cells
+    texts = [t for t in texts if t]
+
+    if len(texts) < 2:
+        return None
+
+    # Try to identify number, position, name columns
+    number = None
+    position = ""
+    name = ""
+
+    for t in texts:
+        if t.isdigit() and len(t) <= 2 and number is None:
+            number = int(t)
+        elif _looks_like_position(t):
+            position = t
+        elif len(t) > 3 and not t.isdigit():
+            name = t
+            break
+
+    if name and position:
+        return {"pos": _translate_position(position), "name": name, "no": number or 0}
+    if name and not position:
+        # Two-column format: [Name, Position] or [Position, Name]
+        other = texts[0] if texts[1] == name else texts[1]
+        if _looks_like_position(other):
+            return {"pos": _translate_position(other), "name": name, "no": number or 0}
+    return None
+
+
+def _parse_player_list(items: list[dict]) -> list[dict]:
+    """Convert a list of player dicts (from JSON) to our format."""
+    result: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name") or item.get("playerName") or ""
+        pos = item.get("position") or item.get("pos") or item.get("role") or ""
+        no = item.get("number") or item.get("no") or item.get("shirtNumber") or item.get("jersey") or 0
+        try:
+            no = int(no)
+        except (ValueError, TypeError):
+            no = 0
+        if name and pos:
+            result.append({"pos": _translate_position(str(pos)), "name": str(name), "no": no})
+    return result
+
+
+def _parse_text_as_player(text: str) -> dict | None:
+    """Parse a single text line as a player entry. e.g. '1. Zion Suzuki (Goalkeeper)'"""
+    import re
+
+    # Pattern: "Number. PlayerName (Position)" or "Number PlayerName — Position"
+    m = re.match(r"(\d{1,2})[\.\)]\s*(.+?)\s*[\(（—–-]\s*(.+?)\s*[\)）]", text)
+    if m:
+        return {
+            "no": int(m.group(1)),
+            "name": m.group(2).strip(),
+            "pos": _translate_position(m.group(3).strip()),
+        }
+
+    # Pattern: "PlayerName — Position"
+    m = re.match(r"(.+?)\s*[—–-]\s*(.+)$", text)
+    if m:
+        name = m.group(1).strip()
+        pos = m.group(2).strip()
+        if _looks_like_position(pos) and _looks_like_name(name):
+            return {"no": 0, "name": name, "pos": _translate_position(pos)}
+
+    return None
+
+
+def _looks_like_position(text: str) -> bool:
+    """Heuristic: does this text look like a football position?"""
+    t = text.strip().lower()
+    return t in _POSITION_MAP
+
+
+def _looks_like_name(text: str) -> bool:
+    """Heuristic: does this text look like a person's name?"""
+    t = text.strip()
+    parts = t.split()
+    if len(parts) < 2:
+        return False
+    # Names have capital first letters per word and no digits
+    return all(p[0].isupper() for p in parts if p) and not any(c.isdigit() for c in t)
 
 
 async def _fetch_scores(m: Match) -> tuple[int, int] | None:

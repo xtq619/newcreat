@@ -35,7 +35,6 @@ api-gateway/
 │   │   │   ├── feedback.py       # 用户留言
 │   │   │   ├── ai_news.py        # 军事资讯
 │   │   │   ├── news_setting.py   # 资讯抓取配置
-│   │   │   ├── battle.py         # 擂台对战记录
 │   │   │   ├── digest.py         # SMTP 摘要配置
 │   │   │   ├── user_digest.py    # 用户订阅偏好
 │   │   │   └── worldcup.py       # 世界杯竞猜 + 情绪投票
@@ -54,7 +53,6 @@ api-gateway/
 │   │   │   │   ├── news_admin.py  # 军事资讯管理 + 抓取设置
 │   │   │   │   ├── digest.py      # 摘要订阅
 │   │   │   │   ├── user_digest.py
-│   │   │   │   ├── battle.py      # 擂台 SSE + WebSocket
 │   │   │   │   ├── hub_admin.py
 │   │   │   │   └── worldcup.py    # 世界杯竞猜 + 情绪投票
 │   │   │   └── public/       # 对外 API（OpenAI 兼容 + 公开接口）
@@ -63,12 +61,12 @@ api-gateway/
 │   │   │   ├── auth_service.py        # 登录注册 + 微信登录
 │   │   │   ├── billing_service.py     # 余额扣费（行锁）
 │   │   │   ├── rate_limiter.py        # Redis 滑动窗口
-│   │   │   ├── battle_service.py      # 擂台辩论逻辑
 │   │   │   ├── news_fetcher.py        # 军事 RSS 抓取 + AI 摘要（均匀分配）
 │   │   │   ├── news_setting_service.py # 资讯抓取配置读写
 │   │   │   ├── digest.py              # 每日摘要编译
 │   │   │   ├── notifier.py            # SMTP 邮件发送
 │   │   │   └── worldcup_service.py    # 世界杯竞猜/情绪服务
+│   │   │   ├── match_updater.py        # 世界杯定时任务：比赛状态 + 大名单爬取
 │   │   ├── middleware/
 │   │   └── main.py           # FastAPI 入口 + APScheduler
 │   ├── tests/
@@ -97,7 +95,6 @@ api-gateway/
 - **速率限制**：Redis 滑动窗口，per-key RPM
 - **用量计费**：按 token 实时扣费，预付制，行锁防并发
 - **多模型管理**：OpenAI、Anthropic、Azure、自定义模型
-- **模型擂台**：两个 AI 辩论 + 裁判评判（SSE 流式 / WebSocket）
 - **世界杯**：赛程展示、竞猜预测、情绪投票、赛事分析
 - **军事资讯**：4 个 RSS 源均匀分配抓取 → AI 中文摘要 → 自动发布
 - **资讯设置**：管理员可配置每日抓取数量、推送时间，支持手动触发
@@ -109,7 +106,7 @@ api-gateway/
 
 - 登录/注册、工作空间 Hub、仪表盘、密钥管理、用量统计、充值计费、模型列表
 - 管理后台：用户管理、**军事资讯管理**（抓取设置 + 资讯列表）、留言管理、SMTP 配置
-- 留言反馈、每日摘要、模型擂台
+- 留言反馈、每日摘要
 
 ## 军事资讯抓取
 
@@ -170,6 +167,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 | DOMAIN | 是 | 域名（用于 CORS，如 `example.com`） |
 | WX_APPID | 否 | 微信小程序 AppID |
 | WX_SECRET | 否 | 微信小程序 AppSecret |
+| WORLDCUP_SQUADS_PAGE_URL | 否 | 大名单爬取页面 URL（默认 SI.com） |
+| WORLDCUP_SCORES_API_URL | 否 | 比分 API URL（预留） |
 | MARKUP_RATIO | 否 | API 加价比例（默认 1.5x） |
 
 ## 数据库迁移记录
@@ -183,7 +182,6 @@ docker compose -f docker-compose.prod.yml up -d --build
 | 9c3d4e5f6a7b | 留言回复字段 |
 | ad4e5f6a7b8c | SMTP 摘要配置 |
 | be5f6a7b8c9d | 用户摘要偏好 |
-| cf6a7b8c9d0e | 擂台记录 |
 | d1a2b3c4d5e6 | 微信 openid |
 | e2f3a4b5c6d7 | 资讯抓取配置 |
 | f3a4b5c6d7e8 | 用户摘要 last_sent_date |

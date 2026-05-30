@@ -116,11 +116,6 @@ export const api = {
   updateMyDigestPref: (data: Record<string, unknown>) =>
     request('/digest', { method: 'PATCH', body: JSON.stringify(data) }),
 
-  // Battle
-  getBattleHistory: (limit = 20, offset = 0) =>
-    request(`/battle/history?limit=${limit}&offset=${offset}`),
-  getBattleDetail: (id: string) => request(`/battle/history/${id}`),
-
   // Fetch URL
   adminFetchUrl: (data: { url: string; title?: string; source_name?: string; category?: string }) =>
     request('/admin/news/fetch-url', { method: 'POST', body: JSON.stringify(data) }),

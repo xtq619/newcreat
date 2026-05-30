@@ -35,7 +35,7 @@ D:\newcreat\                     ← GitHub: xtq619/newcreat
     │                │ │             │ │              │
     │  REST API      │ │  Web 管理端  │ │  移动端入口   │
     │  WebSocket     │ │  用户面板    │ │  军事资讯     │
-    │  RSS 抓取      │ │  管理后台    │ │  模型擂台     │
+    │  RSS 抓取      │ │  管理后台    │ │  建议留言     │
     │  定时任务      │ │  解密工具    │ │  建议留言     │
     └───────┬────────┘ └──────┬──────┘ └──────┬───────┘
             │                 │               │
@@ -64,11 +64,6 @@ D:\newcreat\                     ← GitHub: xtq619/newcreat
 - 管理员可手动发送文章到用户邮箱
 - **AES 加密邮件**：用密码加密文章，以普通邮件形式发送 `.txt` 附件，邮件标题/正文不暴露任何文章信息
 
-### 3. 模型擂台（Battle）
-- 两个 AI 模型围绕话题多轮辩论，裁判 AI 总结评判
-- WebSocket 实时推送对战过程
-- 仅 Web 端可用（小程序端因审核限制已移除）
-
 ### 4. 世界杯（2026 美加墨）
 
 **后端数据托管**（2026-05-20）
@@ -78,10 +73,14 @@ D:\newcreat\                     ← GitHub: xtq619/newcreat
 - 种子脚本：`scripts/seed_worldcup.py` 从 JS 文件初始化数据库
 - 前端优先拉 API 数据，网络失败时自动降级到本地数据
 
-**自动更新**（2026-05-20）
+**自动更新**（2026-05-20 / 05-24）
 - APScheduler 每 30 分钟自动更新比赛状态：upcoming → live → finished
+- APScheduler 每 12 小时自动抓取大名单（SI.com → `lxml` 解析 → 有变化才更新 DB）
+- 球员位置自动英译中（Goalkeeper→门将 等），队名通过 alias map 模糊匹配
+- 号码保护：如数据源无号码，自动从 DB 保留已有号码
+- 配置：`.env` 中设置 `WORLDCUP_SQUADS_PAGE_URL`（默认 SI.com）
 - 预留外部比分 API 接口（`.env` 中配置 `WORLDCUP_SCORES_API_URL` 即可启用自动抓分）
-- 服务文件：`app/services/match_updater.py`
+- 服务文件：`app/services/match_updater.py`（含 match_updates + squad_updates）
 
 **功能**
 - 赛程展示（12 组 48 队 + 淘汰赛，北京时间），按日期选择器快速切换
@@ -238,7 +237,7 @@ systemctl reload nginx
 | `api-gateway/backend/app/api/v1/news_admin.py` | 资讯管理 API（CRUD + 发送 + 加密） |
 | `api-gateway/backend/app/models/worldcup.py` | 世界杯数据模型（Match/Team/Guess/EmotionVote） |
 | `api-gateway/backend/app/services/worldcup_service.py` | 世界杯业务逻辑（竞猜/分析/比赛CRUD/种子） |
-| `api-gateway/backend/app/services/match_updater.py` | 世界杯比赛状态自动更新（定时任务） |
+| `api-gateway/backend/app/services/match_updater.py` | 世界杯比赛状态自动更新 + 大名单爬取（每 30min / 12h） |
 | `api-gateway/backend/app/api/v1/worldcup.py` | 世界杯管理 API（竞猜/情绪/分析/比分更新） |
 | `api-gateway/backend/app/api/public/worldcup.py` | 世界杯公开 API（比赛/球队，无需登录） |
 | `api-gateway/backend/scripts/seed_worldcup.py` | 世界杯种子脚本（从 JS 初始化 DB） |

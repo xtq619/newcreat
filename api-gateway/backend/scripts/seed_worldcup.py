@@ -75,20 +75,21 @@ async def seed_matches(matches_data: list[dict], knockout_data: list[dict], grou
 
 async def seed_teams(teams_data: dict, groups_data: dict) -> int:
     """Insert all teams into the database."""
-    # Map groups to team codes
-    group_map = {}
+    # Build code → {name, flag, group_letter} lookup from groups data
+    code_info: dict[str, dict] = {}
     for letter, team_list in groups_data.items():
         for t in team_list:
-            group_map[t["code"]] = letter
+            code_info[t["code"]] = {"name": t["name"], "flag": t["flag"], "group": letter}
 
     async with async_session() as db:
         count = 0
         for code, data in teams_data.items():
+            info = code_info.get(code, {})
             team = Team(
                 code=code,
-                name=data.get("name", ""),
-                flag=data.get("flag", ""),
-                group_name=group_map.get(code, ""),
+                name=info.get("name", data.get("name", "")),
+                flag=info.get("flag", data.get("flag", "")),
+                group_name=info.get("group", ""),
                 fifa_rank=data.get("fifaRank"),
                 appearances=data.get("appearances", 0),
                 best_result=data.get("best", ""),
@@ -120,7 +121,12 @@ async def main():
     print(f"Reading {matches_js} ...")
     matches_data = export_js(matches_js)
     print(f"Reading {teams_js} ...")
-    teams_data = export_js(teams_js)
+    teams_raw = export_js(teams_js)
+    # Unpack the teamDetails wrapper: { teamDetails: { CODE: {...}, ... } }
+    if "teamDetails" in teams_raw:
+        teams_data = teams_raw["teamDetails"]
+    else:
+        teams_data = teams_raw
 
     print(f"Loaded {len(matches_data['groupMatches'])} group matches, "
           f"{len(matches_data['knockoutMatches'])} knockout matches, "

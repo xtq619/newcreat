@@ -21,7 +21,6 @@ from app.api.v1.proxy import router as proxy_router
 from app.api.v1.usage import router as usage_router
 from app.api.v1.digest import router as digest_router
 from app.api.v1.user_digest import router as user_digest_router
-from app.api.v1.battle import router as battle_router
 from app.api.v1.hub_admin import router as hub_admin_router
 from app.api.v1.worldcup import router as worldcup_router
 from app.core.config import settings
@@ -257,6 +256,8 @@ def _setup_squad_updater():
         except Exception:
             logger.exception("Squad update job failed")
 
+    from datetime import datetime
+
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         update_squads,
@@ -264,6 +265,7 @@ def _setup_squad_updater():
         id="squad_updater",
         name="World Cup Squad Updater",
         replace_existing=True,
+        next_run_time=datetime.now(),
     )
     scheduler.start()
     msg = "Squad updater scheduler started (checking every 12 hours)"
@@ -378,7 +380,6 @@ app.include_router(feedback_admin_router, prefix="/api/v1")
 app.include_router(news_admin_router, prefix="/api/v1")
 app.include_router(digest_router, prefix="/api/v1")
 app.include_router(user_digest_router, prefix="/api/v1")
-app.include_router(battle_router, prefix="/api/v1")
 app.include_router(hub_admin_router, prefix="/api/v1")
 app.include_router(worldcup_router, prefix="/api/v1")
 

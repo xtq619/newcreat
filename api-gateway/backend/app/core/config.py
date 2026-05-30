@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     WX_SECRET: str = ""
     WORLDCUP_SCORES_API_URL: str = ""  # Optional: external API for live scores
     WORLDCUP_SQUADS_API_URL: str = ""  # Optional: external API for squad data updates
+    WORLDCUP_SQUADS_PAGE_URL: str = ""  # Optional: web page URL to scrape squad data from
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:8000",
