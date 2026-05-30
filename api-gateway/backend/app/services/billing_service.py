@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,8 +14,6 @@ async def get_balance(db: AsyncSession, user_id: uuid.UUID) -> float:
     account = result.scalar_one_or_none()
     return account.balance if account else 0.0
 
-
-from decimal import Decimal
 
 async def deduct_balance(db: AsyncSession, user_id: uuid.UUID, amount: float, description: str) -> bool:
     result = await db.execute(

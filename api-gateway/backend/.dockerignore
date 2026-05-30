@@ -1,0 +1,31 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment (contains secrets)
+.env
+
+# Build artifacts
+*.egg-info/
+*.egg
+
+# Virtual env
+.venv/
+venv/
+
+# Git
+.git/
+
+# Tests & dev
+.pytest_cache/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Alembic cache
+alembic/versions/__pycache__/
+
+# Scripts not needed at runtime
+scripts/gen_sql.js

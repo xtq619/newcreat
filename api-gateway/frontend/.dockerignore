@@ -1,0 +1,19 @@
+# Dependencies — Docker installs its own
+node_modules
+
+# Build output — Docker builds fresh
+dist
+dist-ssr
+
+# Git
+.git
+
+# Dev / editor
+.vscode
+.idea
+*.sw?
+*.local
+*.log
+
+# Misc
+README.md
